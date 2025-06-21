@@ -24,7 +24,7 @@ def create_app():
     SECRET_KEY=os.getenv('SECRET_KEY'),
     JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
     JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=12),
-    SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/pfe_db'),
+    SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/db_pfe'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     MAIL_SERVER=os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
     MAIL_PORT=int(os.getenv('MAIL_PORT', 587)),
