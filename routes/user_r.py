@@ -170,6 +170,11 @@ def get_user(user_id):
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
+    print("===== DEBUG FLASK =====")
+    print("request.form :", dict(request.form))
+    print("request.files :", dict(request.files))
+    print("=======================")
+
     user = User.query.get(user_id)
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
