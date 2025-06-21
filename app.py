@@ -15,14 +15,21 @@ def create_app():
 
     CORS(
         app,
-        origins=frontend_origins,
-        supports_credentials=True,
+        resources={
+            r"/api/*": {
+                "origins": frontend_origins,
+                "supports_credentials": True,
+                "allow_headers": ["Content-Type", "Authorization"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            },
+            r"/media/*": {
+                "origins": frontend_origins,
+                "methods": ["GET"]
+            }
+        },
         expose_headers=["Authorization"],
-        allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        max_age=600
     )
-    print("🌐 FRONTEND_URL autorisé pour CORS:", frontend_origins)
-
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
