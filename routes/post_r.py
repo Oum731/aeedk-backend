@@ -81,8 +81,13 @@ def create_post():
 @post_bp.route('', methods=['GET'])
 @cross_origin()
 def get_posts():
-    posts = Post.query.order_by(Post.created_at.desc()).all()
-    return jsonify([post.to_dict() for post in posts]), 200
+    try:
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+        return jsonify([post.to_dict() for post in posts]), 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Erreur serveur", "details": str(e)}), 500
 
 
 @post_bp.route('/<int:post_id>', methods=['GET'])
