@@ -90,11 +90,11 @@ def register():
 @user_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    identifier = data.get("identifier")
-    password = data.get("password")
+    identifier = data.get('identifier')
+    password = data.get('password')
 
     if not identifier or not password:
-        return jsonify({"error": "Identifiants requis"}), 400
+        return jsonify({"error": "Identifiant et mot de passe requis"}), 400
 
     user = User.query.filter(
         (User.email == identifier) | (User.username == identifier)
@@ -104,17 +104,12 @@ def login():
         return jsonify({"error": "Identifiants invalides"}), 401
 
     if not user.confirmed:
-        return jsonify({"error": "Email non confirmé"}), 403
+        return jsonify({"error": "Veuillez confirmer votre email avant de vous connecter."}), 403
 
     from flask_jwt_extended import create_access_token
     token = create_access_token(identity=user.id)
 
-    return jsonify({
-        "message": "Connexion réussie",
-        "user": user.to_dict(),
-        "token": token
-    }), 200
-
+    return jsonify({"token": token, "user": user.to_dict()}), 200
 
 
 @user_bp.route('/verify/<token>', methods=['GET'])
