@@ -11,25 +11,26 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
-    frontend_origins = os.getenv("FRONTEND_URL/api", "").split(",")
+    frontend_origins = os.getenv("FRONTEND_URL", "").split(",")
 
     CORS(
         app,
         resources={
             r"/api/*": {
                 "origins": frontend_origins,
-                "supports_credentials": True,
-                "allow_headers": ["Content-Type", "Authorization"],
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"]
             },
             r"/media/*": {
                 "origins": frontend_origins,
                 "methods": ["GET"]
             }
         },
+        supports_credentials=True,
         expose_headers=["Authorization"],
         max_age=600
     )
+
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
