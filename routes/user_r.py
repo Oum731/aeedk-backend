@@ -9,7 +9,6 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
-from flask_jwt_extended import create_access_token
 
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
@@ -82,10 +81,7 @@ def register():
         mail.send(msg)
         return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
     except Exception as e:
-        print("Erreur envoi email:", e)
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
-    
-
 
 @user_bp.route('/login', methods=['POST'])
 def login():
@@ -110,7 +106,6 @@ def login():
     token = create_access_token(identity=user.id)
 
     return jsonify({"token": token, "user": user.to_dict()}), 200
-
 
 @user_bp.route('/verify/<token>', methods=['GET'])
 def verify_email(token):
@@ -191,12 +186,20 @@ def update_user(user_id):
     else:
         data = request.json or {}
 
+    if 'username' in data and data['username'] != user.username:
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
+
+    if 'email' in data and data['email'] != user.email:
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({"error": "Email déjà utilisé"}), 409
+
     fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role', 'confirmed']
     for field in fields:
         if field in data:
             setattr(user, field, data[field])
 
-    if 'birth_date' in data:
+    if 'birth_date' in data and data['birth_date'].strip():
         try:
             user.birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
         except ValueError:
