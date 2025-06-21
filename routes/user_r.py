@@ -75,10 +75,11 @@ def register():
 
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
     msg = Message(
-        subject=str("Confirmation de votre inscription"),
-        sender=str(os.getenv('MAIL_USERNAME')),
-        recipients=[str(user.email)]
+        subject="Confirmation de votre inscription",
+        sender=os.getenv('MAIL_USERNAME'),
+        recipients=[user.email]
     )
+
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
 
