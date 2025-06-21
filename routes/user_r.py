@@ -176,58 +176,64 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
 
-    print("=== DÉBOGAGE: Début update_user ===", file=sys.stderr)
-
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        data = request.form.to_dict()
-        print(">> Données reçues (form-data):", data, file=sys.stderr)
-
-        if 'avatar' in request.files:
-            avatar = request.files['avatar']
-            print(">> Avatar reçu:", avatar.filename, file=sys.stderr)
-            if avatar and allowed_file(avatar.filename):
-                filename = secure_filename(avatar.filename)
-                unique_filename = f"{uuid.uuid4()}_{filename}"
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
-                user.avatar = f"avatars/{unique_filename}"
-    else:
-        data = request.get_json() or {}
-        print(">> Données reçues (JSON):", data, file=sys.stderr)
-
-    if 'username' in data and data['username'] != user.username:
-        if User.query.filter(User.username == data['username'], User.id != user.id).first():
-            return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
-
-    if 'email' in data and data['email'] != user.email:
-        if User.query.filter(User.email == data['email'], User.id != user.id).first():
-            return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
-
-    fields = [
-        'first_name', 'last_name', 'sub_prefecture', 'village',
-        'phone', 'email', 'username', 'role', 'confirmed'
-    ]
-    for field in fields:
-        if field in data:
-            setattr(user, field, data[field])
-
-    if 'birth_date' in data:
-        value = data['birth_date'].strip()
-        if value:
-            try:
-                user.birth_date = datetime.strptime(value, "%Y-%m-%d").date()
-            except ValueError:
-                return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
-        else:
-            user.birth_date = None
-
     try:
+        print("=== DÉBOGAGE: Début update_user ===", file=sys.stderr)
+
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            data = request.form.to_dict()
+            print(">> Données reçues (form-data):", data, file=sys.stderr)
+
+            if 'avatar' in request.files:
+                avatar = request.files['avatar']
+                print(">> Avatar reçu:", avatar.filename, file=sys.stderr)
+                if avatar and allowed_file(avatar.filename):
+                    filename = secure_filename(avatar.filename)
+                    unique_filename = f"{uuid.uuid4()}_{filename}"
+                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                    avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
+                    user.avatar = f"avatars/{unique_filename}"
+        else:
+            data = request.get_json() or {}
+            print(">> Données reçues (JSON):", data, file=sys.stderr)
+
+        if 'username' in data and data['username'] != user.username:
+            if User.query.filter(User.username == data['username'], User.id != user.id).first():
+                return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
+
+        if 'email' in data and data['email'] != user.email:
+            if User.query.filter(User.email == data['email'], User.id != user.id).first():
+                return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
+
+        fields = [
+            'first_name', 'last_name', 'sub_prefecture', 'village',
+            'phone', 'email', 'username', 'role', 'confirmed'
+        ]
+        for field in fields:
+            if field in data:
+                setattr(user, field, data[field])
+
+        if 'birth_date' in data:
+            raw_date = data['birth_date']
+            if isinstance(raw_date, str):
+                raw_date = raw_date.strip()
+            if raw_date:
+                try:
+                    user.birth_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                except ValueError as e:
+                    print("❌ Format de date invalide:", raw_date, file=sys.stderr)
+                    return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
+            else:
+                user.birth_date = None
+
         db.session.commit()
         print("=== DÉBOGAGE: Fin update_user - succès ===", file=sys.stderr)
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
+
     except Exception as e:
-        print("Erreur de commit :", str(e), file=sys.stderr)
-        return make_response(jsonify({"error": "Erreur lors de la mise à jour", "details": str(e)}), 500)
+        print("❌ Exception générale dans update_user:", str(e), file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
