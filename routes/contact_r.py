@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_mail import Message
+from flask_cors import cross_origin  
 from app import mail
 import re
 import os
@@ -9,6 +10,7 @@ contact_bp = Blueprint('contact_bp', __name__, url_prefix='/api/contact')
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 
 @contact_bp.route('/send/', methods=['POST'])
+@cross_origin()  
 def send_contact_email():
     data = request.json
 

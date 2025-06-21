@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from flask_cors import cross_origin
 from app import db
 from models.like import Like
 from models.post import Post
@@ -14,6 +15,7 @@ def check_existence(content_type, content_id):
     return None
 
 @like_bp.route('/<string:content_type>/<int:content_id>', methods=['POST'])
+@cross_origin()
 def like_or_dislike(content_type, content_id):
     data = request.json or {}
     user_id = data.get('user_id')
@@ -49,6 +51,7 @@ def like_or_dislike(content_type, content_id):
         return jsonify({"message": f"{content_type.capitalize()} { 'liké' if is_like else 'disliké' }"}), 201
 
 @like_bp.route('/<string:content_type>/<int:content_id>', methods=['DELETE'])
+@cross_origin()
 def delete_like(content_type, content_id):
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -63,8 +66,8 @@ def delete_like(content_type, content_id):
     return jsonify({"message": "Interaction supprimée"}), 200
 
 @like_bp.route('/<string:content_type>/<int:content_id>', methods=['GET'])
+@cross_origin()
 def get_likes_info(content_type, content_id):
-    
     user_id = request.args.get("user_id", type=int)
     if content_type not in ['post', 'comment']:
         return jsonify({"error": "Type de contenu invalide"}), 400

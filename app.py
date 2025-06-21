@@ -21,6 +21,7 @@ def create_app():
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
+    print("🌐 FRONTEND_URL autorisé pour CORS:", frontend_origins)
 
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),

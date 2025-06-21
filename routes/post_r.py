@@ -1,5 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, jsonify, request, send_from_directory
+from flask_cors import cross_origin  # ✅ Ajout
 from app import db
 from models.like import Like
 from models.post import Post
@@ -14,18 +15,24 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm'}
 UPLOAD_FOLDER = './media/posts'
 BASE_URL = 'http://localhost:5000'
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def is_admin(user_id):
     user = User.query.get(user_id)
     return user and user.role == 'admin'
 
+
 @post_bp.route('/media/<path:filename>')
+@cross_origin()
 def media_posts(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
+
 @post_bp.route('', methods=['POST'])
+@cross_origin()
 def create_post():
     user_id = request.form.get('author_id')
     if not user_id or not is_admin(user_id):
@@ -70,19 +77,25 @@ def create_post():
         "post": post.to_dict(),
     }), 201
 
+
 @post_bp.route('', methods=['GET'])
+@cross_origin()
 def get_posts():
     posts = Post.query.order_by(Post.created_at.desc()).all()
     return jsonify([post.to_dict() for post in posts]), 200
 
+
 @post_bp.route('/<int:post_id>', methods=['GET'])
+@cross_origin()
 def get_post(post_id):
     post = Post.query.get(post_id)
     if not post:
         return jsonify({"error": "Post non trouvé"}), 404
     return jsonify(post.to_dict(include_comments=True)), 200
 
+
 @post_bp.route('/<int:post_id>', methods=['PUT'])
+@cross_origin()
 def update_post(post_id):
     user_id = request.form.get('author_id') or (request.json and request.json.get('author_id'))
     if not user_id:
@@ -124,7 +137,9 @@ def update_post(post_id):
     db.session.commit()
     return jsonify({"message": "Post mis à jour", "post": post.to_dict()}), 200
 
+
 @post_bp.route('/<int:post_id>', methods=['DELETE'])
+@cross_origin()
 def delete_post(post_id):
     user_id = request.args.get('author_id') or (request.json and request.json.get('author_id'))
     if not user_id:
@@ -140,7 +155,9 @@ def delete_post(post_id):
     db.session.commit()
     return jsonify({"message": "Post supprimé"}), 200
 
+
 @post_bp.route('/<int:post_id>/like', methods=['POST'])
+@cross_origin()
 def like_post(post_id):
     user_id = request.json.get('user_id')
     if not user_id:
@@ -155,7 +172,9 @@ def like_post(post_id):
     db.session.commit()
     return jsonify({"message": "Post liké"}), 201
 
+
 @post_bp.route('/<int:post_id>/like', methods=['DELETE'])
+@cross_origin()
 def unlike_post(post_id):
     user_id = request.args.get('user_id') or (request.json and request.json.get('user_id'))
     if not user_id:

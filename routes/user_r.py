@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_from_directory, url_for
 from flask_jwt_extended import jwt_required
 from flask_mail import Message
+from flask_cors import cross_origin 
 from app import db, mail
 from models.user import User
 import re
@@ -22,11 +23,13 @@ def allowed_file(filename):
 
 
 @user_bp.route('/avatar/<path:filename>')
+@cross_origin()
 def get_avatar(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 @user_bp.route('/register', methods=['POST'])
+@cross_origin()
 def register():
     data = request.form.to_dict() if request.form else (request.json or {})
     required_fields = [
@@ -83,6 +86,7 @@ def register():
 
 
 @user_bp.route('/verify/<token>', methods=['GET'])
+@cross_origin()
 def verify_email(token):
     user = User.query.filter_by(confirmation_token=token).first()
     if not user:
@@ -94,6 +98,7 @@ def verify_email(token):
 
 
 @user_bp.route('/forgot-password', methods=['POST'])
+@cross_origin()
 def forgot_password():
     data = request.get_json()
     email = data.get('email')
@@ -121,6 +126,7 @@ def forgot_password():
 
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
+@cross_origin()
 def reset_password(token):
     data = request.get_json()
     password = data.get('password')
@@ -138,6 +144,7 @@ def reset_password(token):
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
+@cross_origin()
 def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
@@ -147,6 +154,7 @@ def get_user(user_id):
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
+@cross_origin()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
@@ -178,6 +186,7 @@ def update_user(user_id):
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
+@cross_origin()
 def admin_get_all_users():
     page = request.args.get('page', default=1, type=int)
     per_page = request.args.get('per_page', default=100, type=int)
@@ -198,6 +207,7 @@ def admin_get_all_users():
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
+@cross_origin()
 def admin_update_user(user_id):
     user = User.query.get(user_id)
     if not user:
@@ -212,6 +222,7 @@ def admin_update_user(user_id):
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
+@cross_origin()
 def admin_delete_user(user_id):
     user = User.query.get(user_id)
     if not user:

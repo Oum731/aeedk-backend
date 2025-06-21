@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from flask_cors import cross_origin
 from app import db
 from models.comment import Comment
 from models.user import User
@@ -8,12 +9,14 @@ comment_bp = Blueprint('comment_bp', __name__, url_prefix='/api/comments')
 
 
 @comment_bp.route('/', methods=['GET'])
+@cross_origin()
 def get_all_comments():
     comments = Comment.query.order_by(Comment.created_at.desc()).all()
     return jsonify({"comments": [c.to_dict() for c in comments]}), 200
 
 
 @comment_bp.route('/', methods=['POST'])
+@cross_origin()
 def create_comment():
     try:
         data = request.get_json(force=True)
@@ -78,14 +81,18 @@ def create_comment():
         "comment": comment.to_dict()
     }), 201
 
+
 @comment_bp.route('/<int:comment_id>', methods=['GET'])
+@cross_origin()
 def get_comment(comment_id):
     comment = Comment.query.get(comment_id)
     if not comment:
         return jsonify({"error": "Commentaire non trouvé"}), 404
     return jsonify(comment.to_dict()), 200
 
+
 @comment_bp.route('/<int:comment_id>', methods=['PUT'])
+@cross_origin()
 def update_comment(comment_id):
     data = request.get_json()
     user_id = data.get('user_id')
@@ -105,7 +112,9 @@ def update_comment(comment_id):
     db.session.commit()
     return jsonify({"message": "Commentaire mis à jour", "comment": comment.to_dict()}), 200
 
+
 @comment_bp.route('/<int:comment_id>', methods=['DELETE'])
+@cross_origin()
 def delete_comment(comment_id):
     user_id = request.args.get("user_id", type=int)
     if not user_id:
@@ -125,6 +134,7 @@ def delete_comment(comment_id):
 
 
 @comment_bp.route('/post/<int:post_id>', methods=['GET'])
+@cross_origin()
 def list_comments(post_id):
     post = Post.query.get(post_id)
     if not post:
