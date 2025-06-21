@@ -5,7 +5,6 @@ from app import db
 
 class User(db.Model):
     __tablename__ = "user"
-
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -16,13 +15,12 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="avatars/avatar.jpeg") 
+    avatar = db.Column(db.String(255), default="avatars/avatar.jpeg")
     role = db.Column(db.String(20), default='membre')
     confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(128), nullable=True)
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
-
     comments = db.relationship('Comment', back_populates='user', cascade="all, delete-orphan")
     likes = db.relationship('Like', back_populates='user', cascade='all, delete-orphan')
 
@@ -49,7 +47,6 @@ class User(db.Model):
                 avatar_url = f"/media/{path}"
         else:
             avatar_url = "/media/avatars/avatar.jpeg"
-
         return {
             "id": self.id,
             "username": self.username,
@@ -62,5 +59,5 @@ class User(db.Model):
             "avatar": avatar_url,
             "role": self.role,
             "confirmed": self.confirmed,
-            'phone': self.phone
+            "phone": self.phone
         }
