@@ -176,21 +176,24 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
 
+    print("=== DÉBOGAGE: Début update_user ===", file=sys.stderr)
+
     if request.content_type and 'multipart/form-data' in request.content_type:
         data = request.form.to_dict()
-        print("Données reçues (form):", data, file=sys.stderr)
+        print(">> Données reçues (form-data):", data, file=sys.stderr)
+
         if 'avatar' in request.files:
-            file = request.files['avatar']
-            print("Fichier avatar reçu:", file.filename, file=sys.stderr)
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
+            avatar = request.files['avatar']
+            print(">> Avatar reçu:", avatar.filename, file=sys.stderr)
+            if avatar and allowed_file(avatar.filename):
+                filename = secure_filename(avatar.filename)
                 unique_filename = f"{uuid.uuid4()}_{filename}"
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
+                avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
                 user.avatar = f"avatars/{unique_filename}"
     else:
-        data = request.json or {}
-        print("Données reçues (json):", data, file=sys.stderr)
+        data = request.get_json() or {}
+        print(">> Données reçues (JSON):", data, file=sys.stderr)
 
     if 'username' in data and data['username'] != user.username:
         if User.query.filter(User.username == data['username'], User.id != user.id).first():
@@ -200,7 +203,10 @@ def update_user(user_id):
         if User.query.filter(User.email == data['email'], User.id != user.id).first():
             return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
 
-    fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role', 'confirmed']
+    fields = [
+        'first_name', 'last_name', 'sub_prefecture', 'village',
+        'phone', 'email', 'username', 'role', 'confirmed'
+    ]
     for field in fields:
         if field in data:
             setattr(user, field, data[field])
@@ -213,10 +219,11 @@ def update_user(user_id):
             except ValueError:
                 return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
         else:
-            user.birth_date = None 
+            user.birth_date = None
 
     try:
         db.session.commit()
+        print("=== DÉBOGAGE: Fin update_user - succès ===", file=sys.stderr)
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
     except Exception as e:
         print("Erreur de commit :", str(e), file=sys.stderr)
