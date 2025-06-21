@@ -176,7 +176,6 @@ def update_user(user_id):
     try:
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
-            # Ne jamais prendre "avatar" de request.form !
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
                 if avatar and allowed_file(avatar.filename):
