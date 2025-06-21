@@ -1,21 +1,23 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for
+from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response
 from flask_jwt_extended import jwt_required
 from flask_mail import Message
 from app import db, mail
 from models.user import User
-from flask import make_response
-import sys
-import re
 import os
 import uuid
+import sys
+import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
 
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-UPLOAD_FOLDER = os.path.join(os.getcwd(), "media", "avatars")
+
+# 📁 Chemin correct vers le dossier d’avatars
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
@@ -47,9 +49,9 @@ def register():
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             filename = secure_filename(file.filename)
             unique_filename = f"{uuid.uuid4()}_{filename}"
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
             avatar_path = f"avatars/{unique_filename}"
 
@@ -168,7 +170,6 @@ def get_user(user_id):
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
 
-
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
@@ -187,10 +188,11 @@ def update_user(user_id):
                 avatar = request.files['avatar']
                 print(">> Avatar reçu:", avatar.filename, file=sys.stderr)
                 if avatar and allowed_file(avatar.filename):
+                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                     filename = secure_filename(avatar.filename)
                     unique_filename = f"{uuid.uuid4()}_{filename}"
-                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                     avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
+                    print(">> Avatar enregistré dans :", os.path.join(UPLOAD_FOLDER, unique_filename), file=sys.stderr)
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
