@@ -166,17 +166,22 @@ def get_user(user_id):
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
 
+from flask import make_response
+import sys
+
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"error": "Utilisateur non trouvé"}), 404
+        return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
 
     if request.content_type and 'multipart/form-data' in request.content_type:
         data = request.form.to_dict()
+        print("Données reçues (form):", data, file=sys.stderr)
         if 'avatar' in request.files:
             file = request.files['avatar']
+            print("Fichier avatar reçu:", file.filename, file=sys.stderr)
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 unique_filename = f"{uuid.uuid4()}_{filename}"
@@ -185,14 +190,15 @@ def update_user(user_id):
                 user.avatar = f"avatars/{unique_filename}"
     else:
         data = request.json or {}
+        print("Données reçues (json):", data, file=sys.stderr)
 
     if 'username' in data and data['username'] != user.username:
         if User.query.filter(User.username == data['username'], User.id != user.id).first():
-            return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
+            return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
 
     if 'email' in data and data['email'] != user.email:
         if User.query.filter(User.email == data['email'], User.id != user.id).first():
-            return jsonify({"error": "Email déjà utilisé"}), 409
+            return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
 
     fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role', 'confirmed']
     for field in fields:
@@ -203,11 +209,14 @@ def update_user(user_id):
         try:
             user.birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
         except ValueError:
-            return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 400
+            return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
 
-    db.session.commit()
-    return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
-
+    try:
+        db.session.commit()
+        return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
+    except Exception as e:
+        print("Erreur de commit :", str(e), file=sys.stderr)
+        return make_response(jsonify({"error": "Erreur lors de la mise à jour", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
