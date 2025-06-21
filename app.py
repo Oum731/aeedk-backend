@@ -76,7 +76,7 @@ if __name__ == "__main__":
         from models.comment import Comment
         from models.contact import Contact
         from models.like import Like
-        db.create_all()
+        # db.create_all()
 
     app.run(
         host=os.getenv('FLASK_HOST', '0.0.0.0'),
