@@ -9,6 +9,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
+from flask_jwt_extended import create_access_token
 
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
@@ -83,6 +84,31 @@ def register():
     except Exception as e:
         print("Erreur envoi email:", e)
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
+    
+
+
+@user_bp.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    identifier = data.get("email") or data.get("username")
+    password = data.get("password")
+
+    if not identifier or not password:
+        return jsonify({"error": "Identifiants requis"}), 400
+
+    user = User.query.filter(
+        (User.email == identifier) | (User.username == identifier)
+    ).first()
+
+    if not user or not user.check_password(password):
+        return jsonify({"error": "Email ou mot de passe incorrect"}), 401
+
+    if not user.confirmed:
+        return jsonify({"error": "Veuillez confirmer votre adresse email"}), 403
+
+    token = create_access_token(identity=user.id)
+    return jsonify({"token": token, "user": user.to_dict()}), 200
+
 
 @user_bp.route('/verify/<token>', methods=['GET'])
 def verify_email(token):
