@@ -187,11 +187,11 @@ def update_user(user_id):
         data = request.json or {}
 
     if 'username' in data and data['username'] != user.username:
-        if User.query.filter_by(username=data['username']).first():
+        if User.query.filter(User.username == data['username'], User.id != user.id).first():
             return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
 
     if 'email' in data and data['email'] != user.email:
-        if User.query.filter_by(email=data['email']).first():
+        if User.query.filter(User.email == data['email'], User.id != user.id).first():
             return jsonify({"error": "Email déjà utilisé"}), 409
 
     fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role', 'confirmed']
@@ -207,6 +207,7 @@ def update_user(user_id):
 
     db.session.commit()
     return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
+
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
