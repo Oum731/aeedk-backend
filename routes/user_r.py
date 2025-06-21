@@ -171,7 +171,7 @@ def get_user(user_id):
     return jsonify(user.to_dict()), 200
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
-@jwt_required()
+# @jwt_required()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
