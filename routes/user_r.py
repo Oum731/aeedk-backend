@@ -80,7 +80,12 @@ def register():
     )
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
-    mail.send(msg)
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print("Erreur envoi email:", e)
+    return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
+
 
     return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
 

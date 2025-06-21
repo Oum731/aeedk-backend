@@ -16,7 +16,7 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="avatars/avatar.jpeg")  # <--- seulement le chemin relatif
+    avatar = db.Column(db.String(255), default="avatars/avatar.jpeg") 
     role = db.Column(db.String(20), default='membre')
     confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(128), nullable=True)
