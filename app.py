@@ -12,29 +12,27 @@ def create_app():
     app = Flask(__name__)
 
     CORS(
-    app,
-    origins=[
-        "http://localhost:5173",
-        "https://aeedk.netlify.app",
-        "https://aeedk-frontend.onrender.com"
-    ],
-    supports_credentials=True,
-    expose_headers=["Authorization"],
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    
-)
-
+        app,
+        origins=[
+            "http://localhost:5173",
+            "https://aeedk.netlify.app",
+            "https://aeedk-frontend.onrender.com"
+        ],
+        supports_credentials=True,
+        expose_headers=["Authorization"],
+        allow_headers=["Content-Type", "Authorization"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    )
 
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=12),
-        SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI', 'mysql+pymysql://root:@localhost/db_pfe'),
+        SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        MAIL_SERVER=os.getenv('MAIL_SERVER', 'smtp.gmail.com'),
-        MAIL_PORT=int(os.getenv('MAIL_PORT', 587)),
-        MAIL_USE_TLS=os.getenv('MAIL_USE_TLS', 'True') == 'True',
+        MAIL_SERVER=os.getenv('MAIL_SERVER'),
+        MAIL_PORT=int(os.getenv('MAIL_PORT')),
+        MAIL_USE_TLS=os.getenv('MAIL_USE_TLS') == 'True',
         MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
         MAIL_PASSWORD=os.getenv('MAIL_PASSWORD'),
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER'),
@@ -60,11 +58,6 @@ def create_app():
     def index():
         return "<h1>Bienvenue dans l'API Flask</h1>"
 
-    print("\n--- FLASK ROUTES ---")
-    for rule in app.url_map.iter_rules():
-        print(rule)
-    print("--- END ROUTES ---\n")
-
     return app
 
 if __name__ == "__main__":
@@ -76,7 +69,6 @@ if __name__ == "__main__":
         from models.comment import Comment
         from models.contact import Contact
         from models.like import Like
-
         db.create_all()
 
     app.run(
