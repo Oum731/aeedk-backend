@@ -4,6 +4,8 @@ from flask_jwt_extended import jwt_required
 from flask_mail import Message
 from app import db, mail
 from models.user import User
+from flask import make_response
+import sys
 import re
 import os
 import uuid
@@ -166,8 +168,6 @@ def get_user(user_id):
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
 
-from flask import make_response
-import sys
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
@@ -205,11 +205,15 @@ def update_user(user_id):
         if field in data:
             setattr(user, field, data[field])
 
-    if 'birth_date' in data and data['birth_date'].strip():
-        try:
-            user.birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
-        except ValueError:
-            return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
+    if 'birth_date' in data:
+        value = data['birth_date'].strip()
+        if value:
+            try:
+                user.birth_date = datetime.strptime(value, "%Y-%m-%d").date()
+            except ValueError:
+                return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
+        else:
+            user.birth_date = None 
 
     try:
         db.session.commit()
