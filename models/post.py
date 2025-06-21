@@ -38,7 +38,7 @@ class Post(db.Model):
             "user": self.author.to_dict() if self.author else None,
             "media": self.media,
             "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "status": self.status,
             "likes": Like.query.filter_by(content_type='post', content_id=self.id, is_like=True).count(),
             "dislikes": Like.query.filter_by(content_type='post', content_id=self.id, is_like=False).count(),
