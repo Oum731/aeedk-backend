@@ -11,7 +11,7 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
-    frontend_origins = os.getenv("FRONTEND_URL", "").split(",")
+    frontend_origins = os.getenv("FRONTEND_URL/api", "").split(",")
 
     CORS(
         app,
