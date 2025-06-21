@@ -170,15 +170,16 @@ def get_user(user_id):
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
-    print("===== DEBUG FLASK =====")
-    print("request.form :", dict(request.form))
-    print("request.files :", dict(request.files))
-    print("=======================")
-
     user = User.query.get(user_id)
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
+        print("===== DEBUG FLASK =====", flush=True)
+        print("request.form :", dict(request.form), flush=True)
+        print("request.files :", dict(request.files), flush=True)
+        print("request.content_type :", request.content_type, flush=True)
+        print("=======================", flush=True)
+
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
             if 'avatar' in request.files:
@@ -191,14 +192,12 @@ def update_user(user_id):
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
-
         if 'username' in data and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
         if 'email' in data and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
-
         fields = [
             'first_name', 'last_name', 'sub_prefecture', 'village',
             'phone', 'email', 'username', 'role'
@@ -220,14 +219,17 @@ def update_user(user_id):
                 try:
                     user.birth_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
                 except ValueError:
+                    print("Erreur: Format de date invalide (YYYY-MM-DD)", flush=True)
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             else:
                 user.birth_date = None
         db.session.commit()
+        print("Mise à jour utilisateur OK", flush=True)
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
     except Exception as e:
         import traceback
         traceback.print_exc()
+        print("Erreur interne :", str(e), flush=True)
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
