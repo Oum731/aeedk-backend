@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_from_directory, url_for
 from flask_jwt_extended import jwt_required
 from flask_mail import Message
-from flask_cors import cross_origin 
 from app import db, mail
 from models.user import User
 import re
@@ -17,19 +16,14 @@ EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
 @user_bp.route('/avatar/<path:filename>')
-@cross_origin()
 def get_avatar(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-
 @user_bp.route('/register', methods=['POST'])
-@cross_origin()
 def register():
     data = request.form.to_dict() if request.form else (request.json or {})
     required_fields = [
@@ -46,6 +40,7 @@ def register():
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
+
     avatar_path = "avatars/avatar.jpeg"
     if 'avatar' in request.files:
         file = request.files['avatar']
@@ -55,6 +50,7 @@ def register():
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
             avatar_path = f"avatars/{unique_filename}"
+
     user = User(
         username=data['username'],
         email=data['email'],
@@ -80,6 +76,7 @@ def register():
     )
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
+
     try:
         mail.send(msg)
         return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
@@ -87,13 +84,7 @@ def register():
         print("Erreur envoi email:", e)
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
-
-
-    return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
-
-
 @user_bp.route('/verify/<token>', methods=['GET'])
-@cross_origin()
 def verify_email(token):
     user = User.query.filter_by(confirmation_token=token).first()
     if not user:
@@ -103,9 +94,7 @@ def verify_email(token):
     db.session.commit()
     return jsonify({"message": "Email confirmé avec succès. Vous pouvez vous connecter."})
 
-
 @user_bp.route('/forgot-password', methods=['POST'])
-@cross_origin()
 def forgot_password():
     data = request.get_json()
     email = data.get('email')
@@ -131,9 +120,7 @@ def forgot_password():
 
     return jsonify({"message": "Email de réinitialisation envoyé"})
 
-
 @user_bp.route('/reset-password/<token>', methods=['POST'])
-@cross_origin()
 def reset_password(token):
     data = request.get_json()
     password = data.get('password')
@@ -148,24 +135,21 @@ def reset_password(token):
     db.session.commit()
     return jsonify({"message": "Mot de passe réinitialisé avec succès"})
 
-
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
-@cross_origin()
 def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
 
-
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
-@cross_origin()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
+
     if request.content_type and 'multipart/form-data' in request.content_type:
         data = request.form.to_dict()
         if 'avatar' in request.files:
@@ -178,29 +162,32 @@ def update_user(user_id):
                 user.avatar = f"avatars/{unique_filename}"
     else:
         data = request.json or {}
+
     fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role', 'confirmed']
     for field in fields:
         if field in data:
             setattr(user, field, data[field])
+
     if 'birth_date' in data:
         try:
             user.birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
         except ValueError:
             return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 400
+
     db.session.commit()
     return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
 
-
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
-@cross_origin()
 def admin_get_all_users():
     page = request.args.get('page', default=1, type=int)
     per_page = request.args.get('per_page', default=100, type=int)
     role = request.args.get('role', default=None, type=str)
+
     query = User.query
     if role:
         query = query.filter_by(role=role)
+
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     users = pagination.items
     return jsonify({
@@ -211,25 +198,23 @@ def admin_get_all_users():
         "pages": pagination.pages
     }), 200
 
-
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
-@cross_origin()
 def admin_update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
+
     data = request.json or {}
     for field in ['username', 'email', 'first_name', 'last_name', 'role', 'confirmed', 'sub_prefecture', 'village', 'avatar']:
         if field in data:
             setattr(user, field, data[field])
+
     db.session.commit()
     return jsonify({"message": "Utilisateur mis à jour", "user": user.to_dict()}), 200
 
-
 @user_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
-@cross_origin()
 def admin_delete_user(user_id):
     user = User.query.get(user_id)
     if not user:

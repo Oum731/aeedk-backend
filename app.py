@@ -11,18 +11,32 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
-    # Autorisation du frontend Render
-    frontend_origin = "https://aeedk-frontend.onrender.com"
-    print("FRONTEND_URL autorisé :", frontend_origin)
+    frontend_origins = ["https://aeedk-frontend.onrender.com"]
+    print("FRONTEND autorisé :", frontend_origins)
 
-    # Configuration CORS simplifiée
     CORS(
         app,
-        resources={r"/api/*": {"origins": frontend_origin}},
-        supports_credentials=True
+        resources={
+            r"/api/*": {
+                "origins": frontend_origins,
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"],
+            },
+            r"/media/*": {
+                "origins": frontend_origins,
+                "methods": ["GET"],
+            }
+        },
+        supports_credentials=True,
+        expose_headers=["Authorization"],
+        max_age=600
     )
 
-    # Configuration principale
+    @app.before_request
+    def handle_options_requests():
+        if request.method == 'OPTIONS':
+            return '', 200
+
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
@@ -35,44 +49,36 @@ def create_app():
         MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
         MAIL_PASSWORD=os.getenv('MAIL_PASSWORD'),
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER'),
-        MAIL_DEBUG=True
+        MAIL_DEBUG=True,
+        SQLALCHEMY_ENGINE_OPTIONS={
+            "pool_recycle": 280,
+            "pool_pre_ping": True
+        },
+        SQLALCHEMY_POOL_SIZE=5,
+        SQLALCHEMY_MAX_OVERFLOW=10,
     )
 
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_recycle": 280,
-        "pool_pre_ping": True
-    }
-
-    # Initialisation des extensions
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
     mail.init_app(app)
 
-    # Routes API
     app.register_blueprint(user_r.user_bp)
     app.register_blueprint(post_r.post_bp)
     app.register_blueprint(like_r.like_bp)
     app.register_blueprint(comment_r.comment_bp)
     app.register_blueprint(contact_r.contact_bp)
 
-    # Servir les médias
     @app.route('/media/<path:filename>')
     def media(filename):
         return send_from_directory('media', filename)
 
-    # Route de test
     @app.route('/')
     def index():
         return "<h1>Bienvenue dans l'API Flask (Render)</h1>"
 
-    # Gérer les requêtes OPTIONS globalement
-    @app.before_request
-    def handle_options_requests():
-        if request.method == 'OPTIONS':
-            return '', 200
-
     return app
+
 
 if __name__ == "__main__":
     app = create_app()
@@ -83,7 +89,7 @@ if __name__ == "__main__":
         from models.comment import Comment
         from models.contact import Contact
         from models.like import Like
-        # db.create_all()  # Active pour initialiser la BDD localement
+        # db.create_all()
 
     app.run(
         host=os.getenv('FLASK_HOST', '0.0.0.0'),
