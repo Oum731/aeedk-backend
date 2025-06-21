@@ -12,16 +12,18 @@ def create_app():
     app = Flask(__name__)
 
     CORS(
-        app,
-        origins=[
-            "http://localhost:5173",
-            "https://aeedk.netlify.app"
-        ],
-        supports_credentials=True,
-        expose_headers=["Authorization"],
-        allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    )
+    app,
+    origins=[
+        "http://localhost:5173",
+        "https://aeedk.netlify.app",
+        "https://aeedk-frontend.onrender.com"
+    ],
+    supports_credentials=True,
+    expose_headers=["Authorization"],
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
+
 
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY'),
