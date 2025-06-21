@@ -13,7 +13,24 @@ def create_app():
 
     frontend_origins = ["https://aeedk-frontend.onrender.com"]
     print("FRONTEND_URL autorisé :", frontend_origins)
-    CORS(app, origins="*", supports_credentials=True)
+    CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": frontend_origins,
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        },
+        r"/media/*": {
+            "origins": frontend_origins,
+            "methods": ["GET"]
+        }
+    },
+    supports_credentials=True,
+    expose_headers=["Authorization"],
+    max_age=600
+)
+
 
 
     app.config.update(
