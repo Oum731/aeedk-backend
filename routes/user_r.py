@@ -6,7 +6,6 @@ from app import db, mail
 from models.user import User
 import os
 import uuid
-import sys
 import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
@@ -14,8 +13,6 @@ from sqlalchemy import or_
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-
-# 📁 Chemin correct vers le dossier d’avatars
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -179,6 +176,7 @@ def update_user(user_id):
     try:
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
+            # Ne jamais prendre "avatar" de request.form !
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
                 if avatar and allowed_file(avatar.filename):
@@ -189,12 +187,14 @@ def update_user(user_id):
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
+
         if 'username' in data and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
         if 'email' in data and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
+
         fields = [
             'first_name', 'last_name', 'sub_prefecture', 'village',
             'phone', 'email', 'username', 'role'
