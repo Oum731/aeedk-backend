@@ -40,6 +40,7 @@ def register():
         return jsonify({"error": "Email invalide"}), 400
     if User.query.filter(or_(User.email == data['email'], User.username == data['username'])).first():
         return jsonify({"error": "Utilisateur déjà existant"}), 409
+
     try:
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
@@ -74,9 +75,9 @@ def register():
 
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
     msg = Message(
-        subject="Confirmation de votre inscription",
-        sender=os.getenv('MAIL_USERNAME'),
-        recipients=[user.email]
+        subject=str("Confirmation de votre inscription"),
+        sender=str(os.getenv('MAIL_USERNAME')),
+        recipients=[str(user.email)]
     )
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
@@ -92,23 +93,19 @@ def login():
     data = request.get_json()
     identifier = data.get('identifier')
     password = data.get('password')
-
     if not identifier or not password:
         return jsonify({"error": "Identifiant et mot de passe requis"}), 400
 
     user = User.query.filter(
         (User.email == identifier) | (User.username == identifier)
     ).first()
-
     if not user or not user.check_password(password):
         return jsonify({"error": "Identifiants invalides"}), 401
-
     if not user.confirmed:
         return jsonify({"error": "Veuillez confirmer votre email avant de vous connecter."}), 403
 
     from flask_jwt_extended import create_access_token
     token = create_access_token(identity=user.id)
-
     return jsonify({"token": token, "user": user.to_dict()}), 200
 
 @user_bp.route('/verify/<token>', methods=['GET'])
@@ -137,14 +134,13 @@ def forgot_password():
 
     reset_url = url_for('user.reset_password', token=token, _external=True)
     msg = Message(
-        subject="Réinitialisation du mot de passe",
-        sender=os.getenv('MAIL_USERNAME'),
-        recipients=[email]
+        subject=str("Réinitialisation du mot de passe"),
+        sender=str(os.getenv('MAIL_USERNAME')),
+        recipients=[str(email)]
     )
     msg.body = f"Cliquez ici pour réinitialiser votre mot de passe : {reset_url}"
     msg.html = f'<p><a href="{reset_url}">Réinitialisez votre mot de passe</a></p>'
     mail.send(msg)
-
     return jsonify({"message": "Email de réinitialisation envoyé"})
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
@@ -171,17 +167,15 @@ def get_user(user_id):
     return jsonify(user.to_dict()), 200
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
-# @jwt_required()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
         logger.error("===== DEBUG FLASK =====")
-        logger.error(f"request.content_type : {request.content_type}")
-        logger.error(f"request.form : {dict(request.form)}")
-        logger.error(f"request.files : {list(request.files.keys())}")
-        logger.error(f"request.files values : {[f.filename for f in request.files.values()]}")
+        logger.error(f"content_type: {request.content_type}")
+        logger.error(f"form.keys: {list(request.form.keys())}")
+        logger.error(f"files.keys: {list(request.files.keys())}")
         logger.error("=======================")
 
         if request.content_type and 'multipart/form-data' in request.content_type:
@@ -196,44 +190,43 @@ def update_user(user_id):
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
+
         if 'username' in data and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
         if 'email' in data and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
-        fields = [
-            'first_name', 'last_name', 'sub_prefecture', 'village',
-            'phone', 'email', 'username', 'role'
-        ]
+
+        fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role']
         for field in fields:
             if field in data:
                 setattr(user, field, data[field])
+
         if 'confirmed' in data:
             val = data['confirmed']
-            if isinstance(val, bool):
-                user.confirmed = val
-            elif isinstance(val, str):
-                user.confirmed = val.lower() in ['true', '1', 'yes']
+            user.confirmed = val if isinstance(val, bool) else val.lower() in ['true','1','yes']
+
         if 'birth_date' in data:
-            raw_date = data['birth_date']
-            if isinstance(raw_date, str):
-                raw_date = raw_date.strip()
-            if raw_date:
+            raw = data['birth_date'].strip() if isinstance(data['birth_date'], str) else None
+            if raw:
                 try:
-                    user.birth_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+                    user.birth_date = datetime.strptime(raw, "%Y-%m-%d").date()
                 except ValueError:
-                    logger.error("Erreur: Format de date invalide (YYYY-MM-DD)")
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             else:
                 user.birth_date = None
+
         db.session.commit()
         logger.error("Mise à jour utilisateur OK")
-        return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
+        return jsonify({
+            "message": "Profil mis à jour",
+            "user": user.to_dict(),
+            "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True)
+        }), 200
+
     except Exception as e:
-        import traceback
-        logger.error("Erreur interne : " + str(e))
-        logger.error(traceback.format_exc())
+        logger.error("Erreur interne : " + str(e), exc_info=True)
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
