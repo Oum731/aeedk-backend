@@ -13,8 +13,8 @@ post_bp = Blueprint('post_bp', __name__, url_prefix='/api/posts')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm'}
 UPLOAD_FOLDER = './media/posts'
-import os
-BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
+BASE_URL = 'https://aeedk-backend.onrender.com'
+
 
 
 
