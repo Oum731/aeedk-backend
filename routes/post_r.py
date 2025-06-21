@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, jsonify, request, send_from_directory
-from flask_cors import cross_origin  # ✅ Ajout
+from flask_cors import cross_origin 
 from app import db
 from models.like import Like
 from models.post import Post
@@ -13,7 +13,9 @@ post_bp = Blueprint('post_bp', __name__, url_prefix='/api/posts')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm'}
 UPLOAD_FOLDER = './media/posts'
-BASE_URL = 'http://localhost:5000'
+import os
+BASE_URL = os.getenv('BACKEND_BASE_URL', 'http://localhost:5000')
+
 
 
 def allowed_file(filename):
