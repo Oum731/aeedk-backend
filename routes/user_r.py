@@ -212,12 +212,7 @@ def update_user(user_id):
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
-@jwt_required()
 def admin_get_all_users():
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
-    if not user or user.role != 'admin':
-        return jsonify({"error": "Accès refusé"}), 403
     users = User.query.all()
     out = []
     for u in users:
@@ -225,10 +220,14 @@ def admin_get_all_users():
             out.append(u.to_dict())
         except Exception as e:
             print(f"User {u.id} serialization error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": f"Erreur de serialization sur user {u.id}", "details": str(e)}), 500
     return jsonify({
         "users": out,
         "total": len(out)
     }), 200
+
 
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
