@@ -56,11 +56,11 @@ class User(db.Model):
             "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
             "sub_prefecture": self.sub_prefecture,
             "village": self.village,
-            "avatar": avatar_url,
+            "avatar": str(self.avatar) if self.avatar else "/media/avatars/avatar.jpeg",
             "role": self.role,
-            "confirmed": self.confirmed,
+            "confirmed": bool(self.confirmed),
             "phone": self.phone,
-            "confirmation_token": self.confirmation_token,
-            "reset_token": self.reset_token,
+            "confirmation_token": str(self.confirmation_token) if self.confirmation_token else None,
+            "reset_token": str(self.reset_token) if self.reset_token else None,
             "reset_token_expiration": self.reset_token_expiration.isoformat() if self.reset_token_expiration else None
         }
