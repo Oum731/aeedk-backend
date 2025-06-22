@@ -221,7 +221,7 @@ def update_user(user_id):
     except Exception as e:
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
-@user_bp.route('api/user/admin/users', methods=['GET'])
+@user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
     page = request.args.get('page', default=1, type=int)
@@ -242,7 +242,7 @@ def admin_get_all_users():
         "pages": pagination.pages
     }), 200
 
-@user_bp.route('api/user/admin/users/<int:user_id>', methods=['PUT'])
+@user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def admin_update_user(user_id):
     user = User.query.get(user_id)
@@ -257,7 +257,7 @@ def admin_update_user(user_id):
     db.session.commit()
     return jsonify({"message": "Utilisateur mis à jour", "user": user.to_dict()}), 200
 
-@user_bp.route('api/user/admin/users/<int:user_id>', methods=['DELETE'])
+@user_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 def admin_delete_user(user_id):
     user = User.query.get(user_id)
