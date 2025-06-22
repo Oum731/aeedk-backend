@@ -231,12 +231,14 @@ def admin_get_all_users():
     if not user or user.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
 
-    try:
-        page = request.args.get('page', default=1, type=int)
-        per_page = request.args.get('per_page', default=100, type=int)
-    except Exception:
-        page, per_page = 1, 100
+    def safe_int(val, default):
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return default
 
+    page = safe_int(request.args.get('page'), 1)
+    per_page = safe_int(request.args.get('per_page'), 100)
     role = request.args.get('role', default=None, type=str)
     query = User.query
     if role:
@@ -251,6 +253,7 @@ def admin_get_all_users():
         "per_page": pagination.per_page,
         "pages": pagination.pages
     }), 200
+
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
