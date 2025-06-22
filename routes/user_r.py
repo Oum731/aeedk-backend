@@ -37,12 +37,10 @@ def register():
         return jsonify({"error": "Email invalide"}), 400
     if User.query.filter(or_(User.email == data['email'], User.username == data['username'])).first():
         return jsonify({"error": "Utilisateur déjà existant"}), 409
-
     try:
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
-
     avatar_path = "avatars/avatar.jpeg"
     if 'avatar' in request.files:
         file = request.files['avatar']
@@ -52,7 +50,6 @@ def register():
             unique_filename = f"{uuid.uuid4()}_{filename}"
             file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
             avatar_path = f"avatars/{unique_filename}"
-
     user = User(
         username=data['username'],
         email=data['email'],
@@ -69,23 +66,22 @@ def register():
     user.set_password(data['password'])
     db.session.add(user)
     db.session.commit()
-
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
+    sender = os.getenv('MAIL_USERNAME') or ""
+    recipient = str(user.email) if user.email else ""
     msg = Message(
-        subject="Confirmation de votre inscription",
-        sender=os.getenv('MAIL_USERNAME'),
-        recipients=[user.email]
+        subject=str("Confirmation de votre inscription"),
+        sender=sender,
+        recipients=[recipient]
     )
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
-
     try:
         mail.send(msg)
         return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
     except Exception as e:
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
-# Connexion
 @user_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -93,7 +89,6 @@ def login():
     password = data.get('password')
     if not identifier or not password:
         return jsonify({"error": "Identifiant et mot de passe requis"}), 400
-
     user = User.query.filter(
         (User.email == identifier) | (User.username == identifier)
     ).first()
@@ -101,7 +96,6 @@ def login():
         return jsonify({"error": "Identifiants invalides"}), 401
     if not user.confirmed:
         return jsonify({"error": "Veuillez confirmer votre email avant de vous connecter."}), 403
-
     from flask_jwt_extended import create_access_token
     token = create_access_token(identity=user.id)
     return jsonify({"token": token, "user": user.to_dict()}), 200
@@ -129,12 +123,13 @@ def forgot_password():
     user.reset_token = token
     user.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
-
     reset_url = url_for('user.reset_password', token=token, _external=True)
+    sender = os.getenv('MAIL_USERNAME') or ""
+    recipient = str(email) if email else ""
     msg = Message(
-        subject="Réinitialisation du mot de passe",
-        sender=os.getenv('MAIL_USERNAME'),
-        recipients=[email]
+        subject=str("Réinitialisation du mot de passe"),
+        sender=sender,
+        recipients=[recipient]
     )
     msg.body = f"Cliquez ici pour réinitialiser votre mot de passe : {reset_url}"
     msg.html = f'<p><a href="{reset_url}">Réinitialisez votre mot de passe</a></p>'
@@ -182,26 +177,22 @@ def update_user(user_id):
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
-
         if 'username' in data and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
         if 'email' in data and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
-
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'email', 'username', 'role']
         for field in fields:
             if field in data:
                 setattr(user, field, data[field])
-
         if 'confirmed' in data:
             val = data['confirmed']
             if isinstance(val, bool):
                 user.confirmed = val
             elif isinstance(val, str):
                 user.confirmed = val.lower() in ['true', '1', 'yes']
-
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
@@ -211,17 +202,14 @@ def update_user(user_id):
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             elif raw in [None, ""]:
                 user.birth_date = None
-
         db.session.commit()
         return jsonify({
             "message": "Profil mis à jour",
             "user": user.to_dict(),
             "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True)
         }), 200
-
     except Exception as e:
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
-
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
@@ -230,18 +218,15 @@ def admin_get_all_users():
     user = User.query.get(current_user_id)
     if not user or user.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
-
     role = request.args.get('role', default=None, type=str)
     query = User.query
     if role:
         query = query.filter_by(role=role)
-
     users = query.all()
     return jsonify({
         "users": [user.to_dict() for user in users],
         "total": len(users)
     }), 200
-
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
@@ -250,16 +235,13 @@ def admin_update_user(user_id):
     user_admin = User.query.get(current_user_id)
     if not user_admin or user_admin.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
-
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
-
     data = request.json or {}
     for field in ['username', 'email', 'first_name', 'last_name', 'role', 'confirmed', 'sub_prefecture', 'village', 'avatar']:
         if field in data:
             setattr(user, field, data[field])
-
     db.session.commit()
     return jsonify({"message": "Utilisateur mis à jour", "user": user.to_dict()}), 200
 
@@ -270,7 +252,6 @@ def admin_delete_user(user_id):
     user_admin = User.query.get(current_user_id)
     if not user_admin or user_admin.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
-
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
