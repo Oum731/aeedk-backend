@@ -8,10 +8,12 @@ from routes import comment_r, contact_r, like_r, post_r, user_r
 
 load_dotenv()
 
+FRONTEND_URL = "https://aeedk-frontend.onrender.com"
+
 def create_app():
     app = Flask(__name__)
 
-    frontend_origins = ["https://aeedk-frontend.onrender.com"]
+    frontend_origins = [FRONTEND_URL]
     print("FRONTEND autorisé :", frontend_origins)
 
     CORS(
@@ -35,11 +37,15 @@ def create_app():
     @app.before_request
     def handle_options_requests():
         if request.method == 'OPTIONS':
-            return '', 200
+            return '', 200, {
+                "Access-Control-Allow-Origin": FRONTEND_URL,
+                "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+            }
 
     app.config.update(
-        SECRET_KEY=os.getenv('SECRET_KEY'),
-        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY'),
+        SECRET_KEY=os.getenv('SECRET_KEY', 'devkey'),
+        JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', 'devjwtkey'),
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=12),
         SQLALCHEMY_DATABASE_URI=f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
@@ -49,7 +55,7 @@ def create_app():
         MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
         MAIL_PASSWORD=os.getenv('MAIL_PASSWORD'),
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER'),
-        MAIL_DEBUG=True,
+        MAIL_DEBUG=False,
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_recycle": 280,
             "pool_pre_ping": True
@@ -79,10 +85,8 @@ def create_app():
 
     return app
 
-
 if __name__ == "__main__":
     app = create_app()
-
     with app.app_context():
         from models.user import User
         from models.post import Post
@@ -94,5 +98,5 @@ if __name__ == "__main__":
     app.run(
         host=os.getenv('FLASK_HOST', '0.0.0.0'),
         port=int(os.getenv('FLASK_PORT', 5000)),
-        debug=os.getenv('FLASK_DEBUG', 'True') == 'True'
+        debug=os.getenv('FLASK_DEBUG', 'False') == 'True'
     )

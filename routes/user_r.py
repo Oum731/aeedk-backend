@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response
+from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app import db, mail
@@ -9,6 +9,8 @@ import uuid
 import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
+
+FRONTEND_URL = "https://aeedk-frontend.onrender.com"
 
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
@@ -22,7 +24,10 @@ def allowed_file(filename):
 
 @user_bp.route('/avatar/<path:filename>')
 def get_avatar(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    response = make_response(send_from_directory(UPLOAD_FOLDER, filename))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 @user_bp.route('/register', methods=['POST'])
 def register():
@@ -70,7 +75,7 @@ def register():
     sender = os.getenv('MAIL_USERNAME') or ""
     recipient = str(user.email) if user.email else ""
     msg = Message(
-        subject=str("Confirmation de votre inscription"),
+        subject="Confirmation de votre inscription",
         sender=sender,
         recipients=[recipient]
     )
@@ -104,11 +109,11 @@ def login():
 def verify_email(token):
     user = User.query.filter_by(confirmation_token=token).first()
     if not user:
-        return jsonify({"error": "Token invalide ou expiré"}), 404
+        return redirect(f"{FRONTEND_URL}/login?verified=fail", code=302)
     user.confirmed = True
     user.confirmation_token = None
     db.session.commit()
-    return jsonify({"message": "Email confirmé avec succès. Vous pouvez vous connecter."})
+    return redirect(f"{FRONTEND_URL}/login?verified=success", code=302)
 
 @user_bp.route('/forgot-password', methods=['POST'])
 def forgot_password():
@@ -123,11 +128,11 @@ def forgot_password():
     user.reset_token = token
     user.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
-    reset_url = url_for('user.reset_password', token=token, _external=True)
+    reset_url = url_for('user.reset_password_get', token=token, _external=True)
     sender = os.getenv('MAIL_USERNAME') or ""
     recipient = str(email) if email else ""
     msg = Message(
-        subject=str("Réinitialisation du mot de passe"),
+        subject="Réinitialisation du mot de passe",
         sender=sender,
         recipients=[recipient]
     )
@@ -135,6 +140,14 @@ def forgot_password():
     msg.html = f'<p><a href="{reset_url}">Réinitialisez votre mot de passe</a></p>'
     mail.send(msg)
     return jsonify({"message": "Email de réinitialisation envoyé"})
+
+@user_bp.route('/reset-password/<token>', methods=['GET'])
+def reset_password_get(token):
+    user = User.query.filter_by(reset_token=token).first()
+    if not user or user.reset_token_expiration < datetime.utcnow():
+        return redirect(f"{FRONTEND_URL}/login?reset=fail", code=302)
+    # Redirige le frontend sur une page spécifique pour réinitialiser, ex : /reset-password
+    return redirect(f"{FRONTEND_URL}/reset-password?token={token}", code=302)
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
 def reset_password(token):
@@ -149,7 +162,7 @@ def reset_password(token):
     user.reset_token = None
     user.reset_token_expiration = None
     db.session.commit()
-    return jsonify({"message": "Mot de passe réinitialisé avec succès"})
+    return redirect(f"{FRONTEND_URL}/login?reset=success", code=302)
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
@@ -160,7 +173,11 @@ def get_user(user_id):
     return jsonify(user.to_dict()), 200
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
+@jwt_required()
 def update_user(user_id):
+    current_user_id = get_jwt_identity()
+    if int(user_id) != int(current_user_id):
+        return jsonify({"error": "Accès interdit"}), 403
     user = User.query.get(user_id)
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
@@ -206,20 +223,24 @@ def update_user(user_id):
         return jsonify({
             "message": "Profil mis à jour",
             "user": user.to_dict(),
-            "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True)
+            "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True) + f'?t={int(datetime.utcnow().timestamp())}'
         }), 200
     except Exception as e:
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
+@jwt_required()
 def admin_get_all_users():
+    current_user_id = get_jwt_identity()
+    user_admin = User.query.get(current_user_id)
+    if not user_admin or user_admin.role != 'admin':
+        return jsonify({"error": "Accès refusé"}), 403
     users = User.query.all()
     out = []
     for u in users:
         try:
             out.append(u.to_dict())
         except Exception as e:
-            print(f"User {u.id} serialization error: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({"error": f"Erreur de serialization sur user {u.id}", "details": str(e)}), 500
@@ -227,8 +248,6 @@ def admin_get_all_users():
         "users": out,
         "total": len(out)
     }), 200
-
-
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
