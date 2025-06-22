@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, current_app
+from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app import db, mail
@@ -14,7 +14,7 @@ user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-UPLOAD_FOLDER = os.path.join(os.path.dirname(BASE_DIR), "media", "avatars")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
@@ -70,7 +70,7 @@ def register():
     sender = os.getenv('MAIL_USERNAME') or ""
     recipient = str(user.email) if user.email else ""
     msg = Message(
-        subject="Confirmation de votre inscription",
+        subject=str("Confirmation de votre inscription"),
         sender=sender,
         recipients=[recipient]
     )
@@ -127,7 +127,7 @@ def forgot_password():
     sender = os.getenv('MAIL_USERNAME') or ""
     recipient = str(email) if email else ""
     msg = Message(
-        subject="Réinitialisation du mot de passe",
+        subject=str("Réinitialisation du mot de passe"),
         sender=sender,
         recipients=[recipient]
     )
@@ -160,7 +160,6 @@ def get_user(user_id):
     return jsonify(user.to_dict()), 200
 
 @user_bp.route('/<int:user_id>', methods=['PUT'])
-@jwt_required()
 def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
@@ -220,6 +219,7 @@ def admin_get_all_users():
         try:
             out.append(u.to_dict())
         except Exception as e:
+            print(f"User {u.id} serialization error: {e}")
             import traceback
             traceback.print_exc()
             return jsonify({"error": f"Erreur de serialization sur user {u.id}", "details": str(e)}), 500
@@ -227,6 +227,8 @@ def admin_get_all_users():
         "users": out,
         "total": len(out)
     }), 200
+
+
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
