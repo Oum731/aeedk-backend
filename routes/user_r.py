@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
+from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app import db, mail
@@ -18,6 +18,7 @@ EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 Mo
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -50,11 +51,18 @@ def register():
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
+            file.seek(0, os.SEEK_END)
+            file_size = file.tell()
+            file.seek(0)
+            if file_size > MAX_AVATAR_SIZE:
+                return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             filename = secure_filename(file.filename)
             unique_filename = f"{uuid.uuid4()}_{filename}"
             file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
             avatar_path = f"avatars/{unique_filename}"
+        else:
+            return jsonify({"error": "Format d'avatar non autorisé"}), 400
     user = User(
         username=data['username'],
         email=data['email'],
@@ -146,7 +154,6 @@ def reset_password_get(token):
     user = User.query.filter_by(reset_token=token).first()
     if not user or user.reset_token_expiration < datetime.utcnow():
         return redirect(f"{FRONTEND_URL}/login?reset=fail", code=302)
-    # Redirige le frontend sur une page spécifique pour réinitialiser, ex : /reset-password
     return redirect(f"{FRONTEND_URL}/reset-password?token={token}", code=302)
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
@@ -171,6 +178,7 @@ def get_user(user_id):
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
+
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
@@ -193,13 +201,19 @@ def update_user(user_id):
             data = {k: v for k, v in request.form.items() if v.strip() != ""}
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
-                # Correction ici : on vérifie que le fichier a bien un nom non vide
                 if avatar and avatar.filename and allowed_file(avatar.filename):
+                    avatar.seek(0, os.SEEK_END)
+                    file_size = avatar.tell()
+                    avatar.seek(0)
+                    if file_size > MAX_AVATAR_SIZE:
+                        return make_response(jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413)
                     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                     filename = secure_filename(avatar.filename)
                     unique_filename = f"{uuid.uuid4()}_{filename}"
                     avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
                     user.avatar = f"avatars/{unique_filename}"
+                else:
+                    return make_response(jsonify({"error": "Format d'avatar non autorisé"}), 400)
         else:
             data = request.get_json() or {}
             data = {k: v for k, v in data.items() if v is not None and v != ""}

@@ -42,7 +42,7 @@ def create_app():
                 "Access-Control-Allow-Headers": "Content-Type, Authorization",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
             }
-
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'devkey'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', 'devjwtkey'),
