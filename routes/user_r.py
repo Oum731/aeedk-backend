@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app import db, mail
 from models.user import User
@@ -85,6 +85,7 @@ def register():
     except Exception as e:
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
+# Connexion
 @user_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -221,13 +222,22 @@ def update_user(user_id):
     except Exception as e:
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
+
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
-    page = request.args.get('page', default=1, type=int)
-    per_page = request.args.get('per_page', default=100, type=int)
-    role = request.args.get('role', default=None, type=str)
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user or user.role != 'admin':
+        return jsonify({"error": "Accès refusé"}), 403
 
+    try:
+        page = request.args.get('page', default=1, type=int)
+        per_page = request.args.get('per_page', default=100, type=int)
+    except Exception:
+        page, per_page = 1, 100
+
+    role = request.args.get('role', default=None, type=str)
     query = User.query
     if role:
         query = query.filter_by(role=role)
@@ -245,6 +255,11 @@ def admin_get_all_users():
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def admin_update_user(user_id):
+    current_user_id = get_jwt_identity()
+    user_admin = User.query.get(current_user_id)
+    if not user_admin or user_admin.role != 'admin':
+        return jsonify({"error": "Accès refusé"}), 403
+
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
@@ -260,6 +275,11 @@ def admin_update_user(user_id):
 @user_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 def admin_delete_user(user_id):
+    current_user_id = get_jwt_identity()
+    user_admin = User.query.get(current_user_id)
+    if not user_admin or user_admin.role != 'admin':
+        return jsonify({"error": "Accès refusé"}), 403
+
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
