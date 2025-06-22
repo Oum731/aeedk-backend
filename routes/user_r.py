@@ -182,9 +182,8 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
-        # Gestion des données multipart/form-data ou JSON
         if request.content_type and 'multipart/form-data' in request.content_type:
-            data = request.form.to_dict()
+            data = {k: v for k, v in request.form.items() if v.strip() != ""}
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
                 if avatar and allowed_file(avatar.filename):
@@ -195,30 +194,25 @@ def update_user(user_id):
                     user.avatar = f"avatars/{unique_filename}"
         else:
             data = request.get_json() or {}
-
-        # Ne traite QUE les champs reçus et non vides
+            data = {k: v for k, v in data.items() if v is not None and v != ""}
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
             user.username = data['username']
-
         if 'email' in data and data['email'] and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
             user.email = data['email']
-
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
         for field in fields:
             if field in data and data[field]:
                 setattr(user, field, data[field])
-
         if 'confirmed' in data and data['confirmed'] is not None:
             val = data['confirmed']
             if isinstance(val, bool):
                 user.confirmed = val
             elif isinstance(val, str):
                 user.confirmed = val.lower() in ['true', '1', 'yes']
-
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
@@ -228,7 +222,6 @@ def update_user(user_id):
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             elif raw in [None, ""]:
                 user.birth_date = None
-
         db.session.commit()
         return jsonify({
             "message": "Profil mis à jour",
