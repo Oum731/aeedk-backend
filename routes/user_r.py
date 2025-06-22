@@ -218,15 +218,18 @@ def admin_get_all_users():
     user = User.query.get(current_user_id)
     if not user or user.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
-    role = request.args.get('role', default=None, type=str)
-    query = User.query
-    if role:
-        query = query.filter_by(role=role)
-    users = query.all()
+    users = User.query.all()
+    out = []
+    for u in users:
+        try:
+            out.append(u.to_dict())
+        except Exception as e:
+            print(f"User {u.id} serialization error: {e}")
     return jsonify({
-        "users": [user.to_dict() for user in users],
-        "total": len(users)
+        "users": out,
+        "total": len(out)
     }), 200
+
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
