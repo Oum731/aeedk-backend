@@ -59,5 +59,8 @@ class User(db.Model):
             "avatar": avatar_url,
             "role": self.role,
             "confirmed": self.confirmed,
-            "phone": self.phone
+            "phone": self.phone,
+            "confirmation_token": self.confirmation_token,
+            "reset_token": self.reset_token,
+            "reset_token_expiration": self.reset_token_expiration.isoformat() if self.reset_token_expiration else None
         }
