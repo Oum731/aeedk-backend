@@ -10,9 +10,6 @@ import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
 
-import logging
-logger = logging.getLogger("aeedk")
-
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
@@ -79,7 +76,6 @@ def register():
         sender=os.getenv('MAIL_USERNAME'),
         recipients=[user.email]
     )
-
     msg.body = f"Cliquez sur le lien suivant pour confirmer votre compte : {verify_url}"
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
 
@@ -135,9 +131,9 @@ def forgot_password():
 
     reset_url = url_for('user.reset_password', token=token, _external=True)
     msg = Message(
-        subject=str("Réinitialisation du mot de passe"),
-        sender=str(os.getenv('MAIL_USERNAME')),
-        recipients=[str(email)]
+        subject="Réinitialisation du mot de passe",
+        sender=os.getenv('MAIL_USERNAME'),
+        recipients=[email]
     )
     msg.body = f"Cliquez ici pour réinitialiser votre mot de passe : {reset_url}"
     msg.html = f'<p><a href="{reset_url}">Réinitialisez votre mot de passe</a></p>'
@@ -173,12 +169,6 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
-        logger.error("===== DEBUG FLASK =====")
-        logger.error(f"content_type: {request.content_type}")
-        logger.error(f"form.keys: {list(request.form.keys())}")
-        logger.error(f"files.keys: {list(request.files.keys())}")
-        logger.error("=======================")
-
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = request.form.to_dict()
             if 'avatar' in request.files:
@@ -206,20 +196,22 @@ def update_user(user_id):
 
         if 'confirmed' in data:
             val = data['confirmed']
-            user.confirmed = val if isinstance(val, bool) else val.lower() in ['true','1','yes']
+            if isinstance(val, bool):
+                user.confirmed = val
+            elif isinstance(val, str):
+                user.confirmed = val.lower() in ['true', '1', 'yes']
 
         if 'birth_date' in data:
-            raw = data['birth_date'].strip() if isinstance(data['birth_date'], str) else None
-            if raw:
+            raw = data['birth_date']
+            if isinstance(raw, str) and raw.strip():
                 try:
-                    user.birth_date = datetime.strptime(raw, "%Y-%m-%d").date()
+                    user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
-            else:
+            elif raw in [None, ""]:
                 user.birth_date = None
 
         db.session.commit()
-        logger.error("Mise à jour utilisateur OK")
         return jsonify({
             "message": "Profil mis à jour",
             "user": user.to_dict(),
@@ -227,7 +219,6 @@ def update_user(user_id):
         }), 200
 
     except Exception as e:
-        logger.error("Erreur interne : " + str(e), exc_info=True)
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
