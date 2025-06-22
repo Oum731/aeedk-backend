@@ -223,12 +223,6 @@ def update_user(user_id):
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 
-def safe_int(val, default=1):
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
-
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
@@ -237,24 +231,16 @@ def admin_get_all_users():
     if not user or user.role != 'admin':
         return jsonify({"error": "Accès refusé"}), 403
 
-    page = safe_int(request.args.get('page', 1), 1)
-    per_page = safe_int(request.args.get('per_page', 100), 100)
     role = request.args.get('role', default=None, type=str)
-
     query = User.query
     if role:
         query = query.filter_by(role=role)
 
-    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    users = pagination.items
+    users = query.all()
     return jsonify({
         "users": [user.to_dict() for user in users],
-        "total": pagination.total,
-        "page": pagination.page,
-        "per_page": pagination.per_page,
-        "pages": pagination.pages
+        "total": len(users)
     }), 200
-
 
 
 @user_bp.route('/admin/users/<int:user_id>', methods=['PUT'])
