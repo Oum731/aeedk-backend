@@ -171,7 +171,6 @@ def get_user(user_id):
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify(user.to_dict()), 200
-
 @user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
@@ -182,11 +181,20 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
+        print("==== DEBUG UPDATE USER ====")
+        print("request.content_type:", request.content_type)
+        print("request.form:", dict(request.form))
+        print("request.files:", request.files)
+        for f in request.files:
+            print(f, request.files[f])
+        print("===========================")
+
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items() if v.strip() != ""}
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
-                if avatar and allowed_file(avatar.filename):
+                # Correction ici : on vérifie que le fichier a bien un nom non vide
+                if avatar and avatar.filename and allowed_file(avatar.filename):
                     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                     filename = secure_filename(avatar.filename)
                     unique_filename = f"{uuid.uuid4()}_{filename}"
@@ -195,24 +203,29 @@ def update_user(user_id):
         else:
             data = request.get_json() or {}
             data = {k: v for k, v in data.items() if v is not None and v != ""}
+
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
             user.username = data['username']
+
         if 'email' in data and data['email'] and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
             user.email = data['email']
+
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
         for field in fields:
             if field in data and data[field]:
                 setattr(user, field, data[field])
+
         if 'confirmed' in data and data['confirmed'] is not None:
             val = data['confirmed']
             if isinstance(val, bool):
                 user.confirmed = val
             elif isinstance(val, str):
                 user.confirmed = val.lower() in ['true', '1', 'yes']
+
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
@@ -222,6 +235,7 @@ def update_user(user_id):
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             elif raw in [None, ""]:
                 user.birth_date = None
+
         db.session.commit()
         return jsonify({
             "message": "Profil mis à jour",
@@ -229,6 +243,8 @@ def update_user(user_id):
             "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True) + f'?t={int(datetime.utcnow().timestamp())}'
         }), 200
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
 
 @user_bp.route('/admin/users', methods=['GET'])
