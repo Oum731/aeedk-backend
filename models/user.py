@@ -47,20 +47,31 @@ class User(db.Model):
                 avatar_url = f"/media/{path}"
         else:
             avatar_url = "/media/avatars/avatar.jpeg"
+
+        try:
+            birth_date = self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None
+        except Exception:
+            birth_date = None
+
+        try:
+            reset_token_expiration = self.reset_token_expiration.isoformat() if self.reset_token_expiration else None
+        except Exception:
+            reset_token_expiration = None
+
         return {
             "id": self.id,
             "username": str(self.username) if self.username else "",
             "email": str(self.email) if self.email else "",
             "first_name": str(self.first_name) if self.first_name else "",
             "last_name": str(self.last_name) if self.last_name else "",
-            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None,
+            "birth_date": birth_date,
             "sub_prefecture": str(self.sub_prefecture) if self.sub_prefecture else "",
             "village": str(self.village) if self.village else "",
-            "avatar": str(self.avatar) if self.avatar else "/media/avatars/avatar.jpeg",
+            "avatar": avatar_url,
             "role": str(self.role) if self.role else "membre",
             "confirmed": bool(self.confirmed),
             "phone": str(self.phone) if self.phone else "",
             "confirmation_token": str(self.confirmation_token) if self.confirmation_token else None,
             "reset_token": str(self.reset_token) if self.reset_token else None,
-            "reset_token_expiration": self.reset_token_expiration.isoformat() if self.reset_token_expiration else None
+            "reset_token_expiration": reset_token_expiration
         }
