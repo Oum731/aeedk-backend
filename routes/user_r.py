@@ -38,7 +38,7 @@ def get_avatar(filename):
 @user_bp.route('/register', methods=['POST'])
 @cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def register():
-    data = request.form.to_dict() if request.form else (request.json or {})
+    data = request.form.to_dict() if request.form else (request.get_json() or {})
     required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date',
                        'sub_prefecture', 'village', 'phone']
     if not all(field in data and data[field] for field in required_fields):
@@ -116,7 +116,7 @@ def register():
 
 @user_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
     identifier = data.get('identifier')
     password = data.get('password')
     if not identifier or not password:
@@ -141,7 +141,7 @@ def verify_email(token):
 
 @user_bp.route('/forgot-password', methods=['POST'])
 def forgot_password():
-    data = request.get_json()
+    data = request.get_json() or {}
     email = data.get('email')
     if not email:
         return jsonify({"error": "Email requis"}), 400
@@ -179,7 +179,7 @@ def reset_password_get(token):
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
 def reset_password(token):
-    data = request.get_json()
+    data = request.get_json() or {}
     password = data.get('password')
     if not password:
         return jsonify({"error": "Mot de passe requis"}), 400
@@ -208,7 +208,7 @@ def update_user(user_id):
         return jsonify({"error": "Accès interdit"}), 403
     user = User.query.get(user_id)
     if not user:
-        return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
+        return jsonify({"error": "Utilisateur non trouvé"}), 404
     try:
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
@@ -219,7 +219,7 @@ def update_user(user_id):
                     file_size = avatar.tell()
                     avatar.seek(0)
                     if file_size > MAX_AVATAR_SIZE:
-                        return make_response(jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413)
+                        return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
                     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                     temp_filename = secure_filename(avatar.filename)
                     temp_path = os.path.join(UPLOAD_FOLDER, f"tmp_{uuid.uuid4()}_{temp_filename}")
@@ -231,23 +231,23 @@ def update_user(user_id):
                         img.save(save_path, "PNG")
                         user.avatar = unique_filename
                     except Exception:
-                        return make_response(jsonify({"error": "Impossible de traiter l'avatar"}), 400)
+                        return jsonify({"error": "Impossible de traiter l'avatar"}), 400
                     finally:
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                 else:
-                    return make_response(jsonify({"error": "Format d'avatar non autorisé"}), 400)
+                    return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json() or {}
 
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
-                return make_response(jsonify({"error": "Nom d'utilisateur déjà pris"}), 409)
+                return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
             user.username = data['username']
 
         if 'email' in data and data['email'] and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
-                return make_response(jsonify({"error": "Email déjà utilisé"}), 409)
+                return jsonify({"error": "Email déjà utilisé"}), 409
             user.email = data['email']
 
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
@@ -265,7 +265,7 @@ def update_user(user_id):
                 try:
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
-                    return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
+                    return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
 
         db.session.commit()
         return jsonify({
@@ -273,10 +273,7 @@ def update_user(user_id):
             "user": user.to_dict()
         }), 200
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
-
+        return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
@@ -291,8 +288,6 @@ def admin_get_all_users():
         try:
             out.append(u.to_dict())
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             return jsonify({"error": f"Erreur de serialization sur user {u.id}", "details": str(e)}), 500
     return jsonify({
         "users": out,
@@ -309,7 +304,7 @@ def admin_update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
-    data = request.json or {}
+    data = request.get_json() or {}
     for field in ['username', 'email', 'first_name', 'last_name', 'role', 'confirmed', 'sub_prefecture', 'village', 'avatar']:
         if field in data:
             setattr(user, field, data[field])
