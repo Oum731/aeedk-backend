@@ -49,7 +49,6 @@ def register():
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
 
     avatar_path = "avatars/avatar.jpeg"
-
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
@@ -201,7 +200,7 @@ def update_user(user_id):
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
         if request.content_type and 'multipart/form-data' in request.content_type:
-            data = {k: v for k, v in request.form.items() if v.strip() != ""}
+            data = {k: v for k, v in request.form.items()}
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
                 if avatar and avatar.filename and allowed_file(avatar.filename):
@@ -229,7 +228,6 @@ def update_user(user_id):
                     return make_response(jsonify({"error": "Format d'avatar non autorisé"}), 400)
         else:
             data = request.get_json() or {}
-            data = {k: v for k, v in data.items() if v is not None and v != ""}
 
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():

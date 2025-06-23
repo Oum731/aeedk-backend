@@ -46,7 +46,7 @@ def create_app():
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'devkey'),
         JWT_SECRET_KEY=os.getenv('JWT_SECRET_KEY', 'devjwtkey'),
-        JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=12),
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(days=30),
         SQLALCHEMY_DATABASE_URI=f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}",
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         MAIL_SERVER=os.getenv('MAIL_SERVER'),
