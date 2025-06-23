@@ -23,7 +23,7 @@ MAX_AVATAR_SIZE = 2 * 1024 * 1024
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@user_bp.route('/avatar/<path:filename>')
+@user_bp.route('/avatar/<filename>')
 def get_avatar(filename):
     response = make_response(send_from_directory(UPLOAD_FOLDER, filename))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -33,10 +33,8 @@ def get_avatar(filename):
 @user_bp.route('/register', methods=['POST'])
 def register():
     data = request.form.to_dict() if request.form else (request.json or {})
-    required_fields = [
-        'username', 'email', 'password', 'first_name', 'last_name', 'birth_date',
-        'sub_prefecture', 'village', 'phone'
-    ]
+    required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date',
+                       'sub_prefecture', 'village', 'phone']
     if not all(field in data and data[field] for field in required_fields):
         return jsonify({"error": "Champs manquants"}), 400
     if not re.match(EMAIL_REGEX, data['email']):
@@ -48,7 +46,7 @@ def register():
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
 
-    avatar_path = "avatars/avatar.jpeg"
+    avatar_path = "avatar.jpeg"
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
@@ -94,7 +92,7 @@ def register():
 
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
     sender = os.getenv('MAIL_USERNAME') or ""
-    recipient = str(user.email) if user.email else ""
+    recipient = str(user.email)
     msg = Message(
         subject="Confirmation de votre inscription",
         sender=sender,
@@ -181,13 +179,17 @@ def reset_password(token):
     db.session.commit()
     return redirect(f"{FRONTEND_URL}/login?reset=success", code=302)
 
+
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
-    return jsonify({"user": user.to_dict()}), 200
+    data = user.to_dict()
+    data["avatar_url"] = url_for("user.get_avatar", filename=user.avatar, _external=True)
+    return jsonify({"user": data}), 200
+
 
 @user_bp.route('/<int:user_id>', methods=['POST', 'PUT'])
 @jwt_required()
@@ -244,28 +246,23 @@ def update_user(user_id):
             if field in data and data[field] is not None:
                 setattr(user, field, data[field])
 
-        if 'confirmed' in data and data['confirmed'] is not None:
+        if 'confirmed' in data:
             val = data['confirmed']
-            if isinstance(val, bool):
-                user.confirmed = val
-            elif isinstance(val, str):
-                user.confirmed = val.lower() in ['true', '1', 'yes']
+            user.confirmed = val if isinstance(val, bool) else val.lower() in ['true', '1', 'yes']
 
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
                 try:
-                    user.birth_date = datetime.strptime(raw.strip(), "%d-%m-%Y").date()
+                    user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
-            elif raw in [None, ""]:
-                user.birth_date = None
 
         db.session.commit()
         return jsonify({
             "message": "Profil mis à jour",
             "user": user.to_dict(),
-            "avatar_url": url_for('user.get_avatar', filename=os.path.basename(user.avatar), _external=True) + f'?t={int(datetime.utcnow().timestamp())}'
+            "avatar_url": url_for('user.get_avatar', filename=user.avatar, _external=True) + f'?t={int(datetime.utcnow().timestamp())}'
         }), 200
     except Exception as e:
         import traceback

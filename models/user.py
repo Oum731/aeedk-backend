@@ -36,8 +36,10 @@ class User(db.Model):
         if self.avatar and not self.avatar.startswith("http"):
             filename = self.avatar.split("/")[-1]
             avatar_url = url_for('user.get_avatar', filename=filename, _external=True)
+            avatar_url += f'?t={int(datetime.utcnow().timestamp())}'
         else:
             avatar_url = self.avatar or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
+
         return {
             "id": self.id,
             "username": self.username or "",
@@ -47,8 +49,9 @@ class User(db.Model):
             "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else "",
             "sub_prefecture": self.sub_prefecture or "",
             "village": self.village or "",
-            "avatar": avatar_url,
+            "avatar_url": avatar_url,
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
         }
+
