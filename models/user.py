@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
-import uuid
+from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
+from flask import url_for
 
 class User(db.Model):
     __tablename__ = "user"
@@ -35,43 +35,22 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        if self.avatar:
-            if self.avatar.startswith("http"):
-                avatar_url = self.avatar
-            elif self.avatar.startswith("/media"):
-                avatar_url = self.avatar
-            else:
-                path = self.avatar.replace("\\", "/").lstrip("./")
-                if path.startswith("media/"):
-                    path = path[6:]
-                avatar_url = f"/media/{path}"
+        if self.avatar and not self.avatar.startswith("http"):
+            filename = self.avatar.split("/")[-1]
+            avatar_url = url_for('user.get_avatar', filename=filename, _external=True)
         else:
-            avatar_url = "/media/avatars/avatar.jpeg"
-
-        try:
-            birth_date = self.birth_date.strftime("%Y-%m-%d") if self.birth_date else None
-        except Exception:
-            birth_date = None
-
-        try:
-            reset_token_expiration = self.reset_token_expiration.isoformat() if self.reset_token_expiration else None
-        except Exception:
-            reset_token_expiration = None
-
+            avatar_url = self.avatar or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
         return {
             "id": self.id,
-            "username": str(self.username) if self.username else "",
-            "email": str(self.email) if self.email else "",
-            "first_name": str(self.first_name) if self.first_name else "",
-            "last_name": str(self.last_name) if self.last_name else "",
-            "birth_date": birth_date,
-            "sub_prefecture": str(self.sub_prefecture) if self.sub_prefecture else "",
-            "village": str(self.village) if self.village else "",
+            "username": self.username or "",
+            "email": self.email or "",
+            "first_name": self.first_name or "",
+            "last_name": self.last_name or "",
+            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else "",
+            "sub_prefecture": self.sub_prefecture or "",
+            "village": self.village or "",
             "avatar": avatar_url,
-            "role": str(self.role) if self.role else "membre",
+            "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
-            "phone": str(self.phone) if self.phone else "",
-            "confirmation_token": str(self.confirmation_token) if self.confirmation_token else None,
-            "reset_token": str(self.reset_token) if self.reset_token else None,
-            "reset_token_expiration": reset_token_expiration
+            "phone": self.phone or "",
         }
