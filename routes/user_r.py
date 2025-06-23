@@ -210,6 +210,7 @@ def update_user(user_id):
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
     try:
+       
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
             if 'avatar' in request.files:
@@ -238,7 +239,8 @@ def update_user(user_id):
                 else:
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
-            data = request.get_json() or {}
+            # Correction : pas de 422 si le body est vide ou pas JSON
+            data = request.get_json(silent=True) or {}
 
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
@@ -278,6 +280,7 @@ def update_user(user_id):
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
+    # Surtout PAS de lecture du body ici !
     current_user_id = get_jwt_identity()
     user_admin = User.query.get(current_user_id)
     if not user_admin or user_admin.role != 'admin':
@@ -304,7 +307,7 @@ def admin_update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     for field in ['username', 'email', 'first_name', 'last_name', 'role', 'confirmed', 'sub_prefecture', 'village', 'avatar']:
         if field in data:
             setattr(user, field, data[field])
