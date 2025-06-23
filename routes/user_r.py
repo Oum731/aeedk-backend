@@ -91,7 +91,9 @@ def register():
     db.session.commit()
 
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
-    sender = os.getenv('MAIL_USERNAME') or ""
+    sender = os.getenv('MAIL_USERNAME')
+    if not sender or not isinstance(sender, str):
+        return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(user.email)
     msg = Message(
         subject="Confirmation de votre inscription",
@@ -145,7 +147,9 @@ def forgot_password():
     user.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
     reset_url = url_for('user.reset_password_get', token=token, _external=True)
-    sender = os.getenv('MAIL_USERNAME') or ""
+    sender = os.getenv('MAIL_USERNAME')
+    if not sender or not isinstance(sender, str):
+        return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(email)
     msg = Message(
         subject="Réinitialisation du mot de passe",
@@ -154,8 +158,11 @@ def forgot_password():
     )
     msg.body = f"Cliquez ici pour réinitialiser votre mot de passe : {reset_url}"
     msg.html = f'<p><a href="{reset_url}">Réinitialisez votre mot de passe</a></p>'
-    mail.send(msg)
-    return jsonify({"message": "Email de réinitialisation envoyé"})
+    try:
+        mail.send(msg)
+        return jsonify({"message": "Email de réinitialisation envoyé"})
+    except Exception as e:
+        return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
 @user_bp.route('/reset-password/<token>', methods=['GET'])
 def reset_password_get(token):
@@ -179,20 +186,16 @@ def reset_password(token):
     db.session.commit()
     return redirect(f"{FRONTEND_URL}/login?reset=success", code=302)
 
-
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
     current_user_id = get_jwt_identity()
-    print(f"🔐 JWT identity: {current_user_id}")
-    print(f"📥 Headers: {request.headers}")
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     data = user.to_dict()
     data["avatar_url"] = url_for("user.get_avatar", filename=user.avatar, _external=True)
     return jsonify({"user": data}), 200
-
 
 @user_bp.route('/<int:user_id>', methods=['POST', 'PUT'])
 @jwt_required()
