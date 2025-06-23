@@ -187,7 +187,7 @@ def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
-    return jsonify(user.to_dict()), 200
+    return jsonify({"user": user.to_dict()}), 200
 
 @user_bp.route('/<int:user_id>', methods=['POST', 'PUT'])
 @jwt_required()
@@ -241,7 +241,7 @@ def update_user(user_id):
 
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
         for field in fields:
-            if field in data and data[field]:
+            if field in data and data[field] is not None:
                 setattr(user, field, data[field])
 
         if 'confirmed' in data and data['confirmed'] is not None:
@@ -255,7 +255,7 @@ def update_user(user_id):
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
                 try:
-                    user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
+                    user.birth_date = datetime.strptime(raw.strip(), "%d-%m-%Y").date()
                 except ValueError:
                     return make_response(jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422)
             elif raw in [None, ""]:
