@@ -40,13 +40,18 @@ class User(db.Model):
         else:
             avatar_url = self.avatar or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
 
+        try:
+            birth_date_str = self.birth_date.strftime("%Y-%m-%d") if self.birth_date else ""
+        except Exception:
+            birth_date_str = ""
+
         return {
             "id": self.id,
             "username": self.username or "",
             "email": self.email or "",
             "first_name": self.first_name or "",
             "last_name": self.last_name or "",
-            "birth_date": self.birth_date.strftime("%Y-%m-%d") if self.birth_date else "",
+            "birth_date": birth_date_str,
             "sub_prefecture": self.sub_prefecture or "",
             "village": self.village or "",
             "avatar_url": avatar_url,
@@ -54,4 +59,5 @@ class User(db.Model):
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
         }
+
 
