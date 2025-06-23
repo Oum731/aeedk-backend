@@ -239,7 +239,6 @@ def update_user(user_id):
                 else:
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
-            # Correction : pas de 422 si le body est vide ou pas JSON
             data = request.get_json(silent=True) or {}
 
         if 'username' in data and data['username'] and data['username'] != user.username:
