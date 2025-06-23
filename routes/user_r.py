@@ -9,7 +9,7 @@ import uuid
 import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
-from PIL import Image  # Pour conversion PNG
+from PIL import Image  
 
 FRONTEND_URL = "https://aeedk-frontend.onrender.com"
 
@@ -19,7 +19,7 @@ EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2 Mo
+MAX_AVATAR_SIZE = 2 * 1024 * 1024 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -49,7 +49,7 @@ def register():
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
 
-    avatar_path = "avatars/avatar.jpeg"  # par défaut
+    avatar_path = "avatars/avatar.jpeg" 
 
     if 'avatar' in request.files:
         file = request.files['avatar']
