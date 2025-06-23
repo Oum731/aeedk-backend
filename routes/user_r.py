@@ -66,7 +66,7 @@ def register():
                 unique_filename = f"{uuid.uuid4()}_avatar.png"
                 save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
                 img.save(save_path, "PNG")
-                avatar_path = f"avatars/{unique_filename}"
+                avatar_path = unique_filename
             except Exception:
                 return jsonify({"error": "Impossible de traiter l'avatar"}), 400
             finally:
@@ -218,7 +218,7 @@ def update_user(user_id):
                         unique_filename = f"{uuid.uuid4()}_avatar.png"
                         save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
                         img.save(save_path, "PNG")
-                        user.avatar = f"avatars/{unique_filename}"
+                        user.avatar = unique_filename
                     except Exception:
                         return make_response(jsonify({"error": "Impossible de traiter l'avatar"}), 400)
                     finally:
