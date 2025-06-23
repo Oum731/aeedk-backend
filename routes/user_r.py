@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect, current_app
+from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_mail import Message
 from app import db, mail
@@ -9,6 +9,7 @@ import uuid
 import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
+from PIL import Image  # Pour conversion PNG
 
 FRONTEND_URL = "https://aeedk-frontend.onrender.com"
 
@@ -47,7 +48,9 @@ def register():
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
-    avatar_path = "avatars/avatar.jpeg"
+
+    avatar_path = "avatars/avatar.jpeg"  # par défaut
+
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
@@ -57,12 +60,23 @@ def register():
             if file_size > MAX_AVATAR_SIZE:
                 return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            filename = secure_filename(file.filename)
-            unique_filename = f"{uuid.uuid4()}_{filename}"
-            file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
-            avatar_path = f"avatars/{unique_filename}"
+            temp_filename = secure_filename(file.filename)
+            temp_path = os.path.join(UPLOAD_FOLDER, f"tmp_{uuid.uuid4()}_{temp_filename}")
+            file.save(temp_path)
+            try:
+                img = Image.open(temp_path).convert("RGBA")
+                unique_filename = f"{uuid.uuid4()}_avatar.png"
+                save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                img.save(save_path, "PNG")
+                avatar_path = f"avatars/{unique_filename}"
+            except Exception:
+                return jsonify({"error": "Impossible de traiter l'avatar"}), 400
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
         else:
             return jsonify({"error": "Format d'avatar non autorisé"}), 400
+
     user = User(
         username=data['username'],
         email=data['email'],
@@ -189,14 +203,6 @@ def update_user(user_id):
     if not user:
         return make_response(jsonify({"error": "Utilisateur non trouvé"}), 404)
     try:
-        print("==== DEBUG UPDATE USER ====")
-        print("request.content_type:", request.content_type)
-        print("request.form:", dict(request.form))
-        print("request.files:", request.files)
-        for f in request.files:
-            print(f, request.files[f])
-        print("===========================")
-
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items() if v.strip() != ""}
             if 'avatar' in request.files:
@@ -208,10 +214,20 @@ def update_user(user_id):
                     if file_size > MAX_AVATAR_SIZE:
                         return make_response(jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413)
                     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                    filename = secure_filename(avatar.filename)
-                    unique_filename = f"{uuid.uuid4()}_{filename}"
-                    avatar.save(os.path.join(UPLOAD_FOLDER, unique_filename))
-                    user.avatar = f"avatars/{unique_filename}"
+                    temp_filename = secure_filename(avatar.filename)
+                    temp_path = os.path.join(UPLOAD_FOLDER, f"tmp_{uuid.uuid4()}_{temp_filename}")
+                    avatar.save(temp_path)
+                    try:
+                        img = Image.open(temp_path).convert("RGBA")
+                        unique_filename = f"{uuid.uuid4()}_avatar.png"
+                        save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                        img.save(save_path, "PNG")
+                        user.avatar = f"avatars/{unique_filename}"
+                    except Exception:
+                        return make_response(jsonify({"error": "Impossible de traiter l'avatar"}), 400)
+                    finally:
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
                 else:
                     return make_response(jsonify({"error": "Format d'avatar non autorisé"}), 400)
         else:
