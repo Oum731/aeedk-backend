@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
+from flask_cors import cross_origin
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from flask_mail import Message
 from app import db, mail
@@ -35,6 +36,7 @@ def get_avatar(filename):
     return response
 
 @user_bp.route('/register', methods=['POST'])
+@cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def register():
     data = request.form.to_dict() if request.form else (request.json or {})
     required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date',
