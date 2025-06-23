@@ -25,7 +25,11 @@ def allowed_file(filename):
 
 @user_bp.route('/avatar/<filename>')
 def get_avatar(filename):
-    response = make_response(send_from_directory(UPLOAD_FOLDER, filename))
+    safe_name = secure_filename(filename)
+    full_path = os.path.join(UPLOAD_FOLDER, safe_name)
+    if not os.path.exists(full_path):
+        return send_from_directory(UPLOAD_FOLDER, "avatar.jpeg")
+    response = make_response(send_from_directory(UPLOAD_FOLDER, safe_name))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     return response
@@ -189,13 +193,10 @@ def reset_password(token):
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
-    current_user_id = get_jwt_identity()
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
-    data = user.to_dict()
-    data["avatar_url"] = url_for("user.get_avatar", filename=user.avatar, _external=True)
-    return jsonify({"user": data}), 200
+    return jsonify({"user": user.to_dict()}), 200
 
 @user_bp.route('/<int:user_id>', methods=['POST', 'PUT'])
 @jwt_required()
@@ -254,7 +255,7 @@ def update_user(user_id):
 
         if 'confirmed' in data:
             val = data['confirmed']
-            user.confirmed = val if isinstance(val, bool) else val.lower() in ['true', '1', 'yes']
+            user.confirmed = val if isinstance(val, bool) else str(val).lower() in ['true', '1', 'yes']
 
         if 'birth_date' in data:
             raw = data['birth_date']
@@ -267,13 +268,13 @@ def update_user(user_id):
         db.session.commit()
         return jsonify({
             "message": "Profil mis à jour",
-            "user": user.to_dict(),
-            "avatar_url": url_for('user.get_avatar', filename=user.avatar, _external=True) + f'?t={int(datetime.utcnow().timestamp())}'
+            "user": user.to_dict()
         }), 200
     except Exception as e:
         import traceback
         traceback.print_exc()
         return make_response(jsonify({"error": "Erreur interne", "details": str(e)}), 500)
+
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()

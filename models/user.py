@@ -17,6 +17,7 @@ class User(db.Model):
     village = db.Column(db.String(100))
     avatar = db.Column(db.String(255), default="avatars/avatar.jpeg")
     role = db.Column(db.String(20), default='membre')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(128), nullable=True)
     reset_token = db.Column(db.String(128), nullable=True)
