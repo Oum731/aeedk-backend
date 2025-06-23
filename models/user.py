@@ -25,9 +25,7 @@ class User(db.Model):
     likes = db.relationship('Like', back_populates='user', cascade='all, delete-orphan')
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(
-            password, method='pbkdf2:sha256', salt_length=16
-        )
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
 
     def check_password(self, password):
         if not self.password_hash:

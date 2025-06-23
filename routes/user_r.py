@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from flask_mail import Message
 from app import db, mail
 from models.user import User
@@ -9,17 +9,16 @@ import uuid
 import re
 from werkzeug.utils import secure_filename
 from sqlalchemy import or_
-from PIL import Image  
+from PIL import Image
 
 FRONTEND_URL = "https://aeedk-frontend.onrender.com"
-
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-MAX_AVATAR_SIZE = 2 * 1024 * 1024 
+MAX_AVATAR_SIZE = 2 * 1024 * 1024
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -49,7 +48,7 @@ def register():
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
 
-    avatar_path = "avatars/avatar.jpeg" 
+    avatar_path = "avatars/avatar.jpeg"
 
     if 'avatar' in request.files:
         file = request.files['avatar']
@@ -93,6 +92,7 @@ def register():
     user.set_password(data['password'])
     db.session.add(user)
     db.session.commit()
+
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
     sender = os.getenv('MAIL_USERNAME') or ""
     recipient = str(user.email) if user.email else ""
@@ -105,7 +105,7 @@ def register():
     msg.html = f'<p>Merci pour votre inscription.</p><p><a href="{verify_url}">Confirmez votre adresse email</a></p>'
     try:
         mail.send(msg)
-        return jsonify({"message": "Inscription réussie. Vérifiez votre email pour confirmer votre compte."}), 201
+        return jsonify({"message": "Inscription réussie. Vérifiez votre email."}), 201
     except Exception as e:
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
@@ -116,14 +116,11 @@ def login():
     password = data.get('password')
     if not identifier or not password:
         return jsonify({"error": "Identifiant et mot de passe requis"}), 400
-    user = User.query.filter(
-        (User.email == identifier) | (User.username == identifier)
-    ).first()
+    user = User.query.filter((User.email == identifier) | (User.username == identifier)).first()
     if not user or not user.check_password(password):
         return jsonify({"error": "Identifiants invalides"}), 401
     if not user.confirmed:
-        return jsonify({"error": "Veuillez confirmer votre email avant de vous connecter."}), 403
-    from flask_jwt_extended import create_access_token
+        return jsonify({"error": "Veuillez confirmer votre email."}), 403
     token = create_access_token(identity=user.id)
     return jsonify({"token": token, "user": user.to_dict()}), 200
 
@@ -152,7 +149,7 @@ def forgot_password():
     db.session.commit()
     reset_url = url_for('user.reset_password_get', token=token, _external=True)
     sender = os.getenv('MAIL_USERNAME') or ""
-    recipient = str(email) if email else ""
+    recipient = str(email)
     msg = Message(
         subject="Réinitialisation du mot de passe",
         sender=sender,
