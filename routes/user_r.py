@@ -183,6 +183,9 @@ def reset_password(token):
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
+    current_user_id = get_jwt_identity()
+    print(f"🔐 JWT identity: {current_user_id}")
+    print(f"📥 Headers: {request.headers}")
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
