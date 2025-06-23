@@ -39,8 +39,7 @@ def get_avatar(filename):
 @cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def register():
     data = request.form.to_dict() if request.form else (request.get_json() or {})
-    required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date',
-                       'sub_prefecture', 'village', 'phone']
+    required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date', 'sub_prefecture', 'village', 'phone']
     if not all(field in data and data[field] for field in required_fields):
         return jsonify({"error": "Champs manquants"}), 400
     if not re.match(EMAIL_REGEX, data['email']):
@@ -51,7 +50,6 @@ def register():
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
-
     avatar_path = "avatar.jpeg"
     if 'avatar' in request.files:
         file = request.files['avatar']
@@ -78,7 +76,6 @@ def register():
                     os.remove(temp_path)
         else:
             return jsonify({"error": "Format d'avatar non autorisé"}), 400
-
     user = User(
         username=data['username'],
         email=data['email'],
@@ -95,7 +92,6 @@ def register():
     user.set_password(data['password'])
     db.session.add(user)
     db.session.commit()
-
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
     sender = os.getenv('MAIL_USERNAME')
     if not sender or not isinstance(sender, str):
@@ -200,7 +196,7 @@ def get_user(user_id):
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     return jsonify({"user": user.to_dict()}), 200
 
-@user_bp.route('/<int:user_id>', methods=['POST', 'PUT'])
+@user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
 @jwt_required()
 def update_user(user_id):
     current_user_id = get_jwt_identity()
@@ -210,7 +206,6 @@ def update_user(user_id):
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
     try:
-       
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
             if 'avatar' in request.files:
@@ -240,26 +235,21 @@ def update_user(user_id):
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json(silent=True) or {}
-
         if 'username' in data and data['username'] and data['username'] != user.username:
             if User.query.filter(User.username == data['username'], User.id != user.id).first():
                 return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
             user.username = data['username']
-
         if 'email' in data and data['email'] and data['email'] != user.email:
             if User.query.filter(User.email == data['email'], User.id != user.id).first():
                 return jsonify({"error": "Email déjà utilisé"}), 409
             user.email = data['email']
-
         fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
         for field in fields:
             if field in data and data[field] is not None:
                 setattr(user, field, data[field])
-
         if 'confirmed' in data:
             val = data['confirmed']
             user.confirmed = val if isinstance(val, bool) else str(val).lower() in ['true', '1', 'yes']
-
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
@@ -267,19 +257,14 @@ def update_user(user_id):
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
-
         db.session.commit()
-        return jsonify({
-            "message": "Profil mis à jour",
-            "user": user.to_dict()
-        }), 200
+        return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
-    # Surtout PAS de lecture du body ici !
     current_user_id = get_jwt_identity()
     user_admin = User.query.get(current_user_id)
     if not user_admin or user_admin.role != 'admin':
