@@ -39,7 +39,10 @@ def get_avatar(filename):
 @cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def register():
     data = request.form.to_dict() if request.form else (request.get_json() or {})
-    required_fields = ['username', 'email', 'password', 'first_name', 'last_name', 'birth_date', 'sub_prefecture', 'village', 'phone']
+    required_fields = [
+        'username', 'email', 'password', 'first_name', 'last_name',
+        'birth_date', 'sub_prefecture', 'village', 'phone'
+    ]
     if not all(field in data and data[field] for field in required_fields):
         return jsonify({"error": "Champs manquants"}), 400
     if not re.match(EMAIL_REGEX, data['email']):
@@ -98,7 +101,7 @@ def register():
         return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(user.email)
     msg = Message(
-        subject=str("Confirmation de votre inscription"),
+        subject="Confirmation de votre inscription",
         sender=sender,
         recipients=[recipient]
     )
@@ -154,7 +157,7 @@ def forgot_password():
         return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(email)
     msg = Message(
-        subject=str("Réinitialisation du mot de passe"),
+        subject="Réinitialisation du mot de passe",
         sender=sender,
         recipients=[recipient]
     )
@@ -200,7 +203,7 @@ def get_user(user_id):
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
-@user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
+@user_bp.route('/<int:user_id>', methods=['PUT'])
 @jwt_required()
 def update_user(user_id):
     current_user_id = get_jwt_identity()
@@ -210,6 +213,7 @@ def update_user(user_id):
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
     try:
+        data = {}
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
             if 'avatar' in request.files:
@@ -242,7 +246,7 @@ def update_user(user_id):
 
         fields = [
             'username', 'first_name', 'last_name',
-            'sub_prefecture', 'village', 'phone', 'role'
+            'sub_prefecture', 'village', 'phone'
         ]
         for field in fields:
             if field in data:
@@ -252,17 +256,8 @@ def update_user(user_id):
                         if User.query.filter(User.username == value, User.id != user.id).first():
                             return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
                         user.username = value
-                    elif field == 'role':
-                        user.role = value
                     else:
                         setattr(user, field, value)
-
-        if 'email' in data:
-            email = data['email']
-            if email and email != user.email:
-                if User.query.filter(User.email == email, User.id != user.id).first():
-                    return jsonify({"error": "Email déjà utilisé"}), 409
-                user.email = email
 
         if 'birth_date' in data:
             raw = data['birth_date']
