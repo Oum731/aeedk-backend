@@ -245,6 +245,12 @@ def update_user(user_id):
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json(silent=True) or {}
+            print("== DONNEES REÇUES update_user ==")
+            print("data =", data)
+            if request.files:
+                print("files =", request.files)
+            print("=====================")
+
 
         fields = [
             'username', 'first_name', 'last_name',
@@ -268,6 +274,17 @@ def update_user(user_id):
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
+        print("== AVANT COMMIT ==")
+        print("username", user.username)
+        print("first_name", user.first_name)
+        print("last_name", user.last_name)
+        print("birth_date", user.birth_date)
+        print("sub_prefecture", user.sub_prefecture)
+        print("village", user.village)
+        print("phone", user.phone)
+        print("avatar", user.avatar)
+        print("=====================")
+
 
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
