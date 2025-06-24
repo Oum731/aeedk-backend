@@ -203,7 +203,7 @@ def get_user(user_id):
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
-@user_bp.route('/<int:user_id>', methods=['PUT'])
+@user_bp.route('/<int:user_id>', methods=['PUT','POST'])
 @jwt_required()
 def update_user(user_id):
     current_user_id = get_jwt_identity()
