@@ -231,25 +231,35 @@ def update_user(user_id):
                     finally:
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
-                else:
+                elif avatar and avatar.filename:
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json(silent=True) or {}
-        if 'username' in data and data['username'] and data['username'] != user.username:
-            if User.query.filter(User.username == data['username'], User.id != user.id).first():
-                return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
-            user.username = data['username']
-        if 'email' in data and data['email'] and data['email'] != user.email:
-            if User.query.filter(User.email == data['email'], User.id != user.id).first():
-                return jsonify({"error": "Email déjà utilisé"}), 409
-            user.email = data['email']
-        fields = ['first_name', 'last_name', 'sub_prefecture', 'village', 'phone', 'role']
+
+        fields = [
+            'username', 'first_name', 'last_name',
+            'sub_prefecture', 'village', 'phone', 'role'
+        ]
         for field in fields:
-            if field in data and data[field] is not None:
-                setattr(user, field, data[field])
-        if 'confirmed' in data:
-            val = data['confirmed']
-            user.confirmed = val if isinstance(val, bool) else str(val).lower() in ['true', '1', 'yes']
+            if field in data:
+                value = data[field]
+                if value is not None and str(value).strip() != "":
+                    if field == 'username' and value != user.username:
+                        if User.query.filter(User.username == value, User.id != user.id).first():
+                            return jsonify({"error": "Nom d'utilisateur déjà pris"}), 409
+                        user.username = value
+                    elif field == 'role':
+                        user.role = value
+                    else:
+                        setattr(user, field, value)
+
+        if 'email' in data:
+            email = data['email']
+            if email and email != user.email:
+                if User.query.filter(User.email == email, User.id != user.id).first():
+                    return jsonify({"error": "Email déjà utilisé"}), 409
+                user.email = email
+
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
@@ -257,10 +267,12 @@ def update_user(user_id):
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError:
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
+
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
+
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
