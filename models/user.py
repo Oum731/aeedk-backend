@@ -43,7 +43,12 @@ class User(db.Model):
             avatar_url = avatar_value or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
 
         try:
-            birth_date_str = self.birth_date.strftime("%Y-%m-%d") if self.birth_date else ""
+            if not self.birth_date:
+                birth_date_str = ""
+            elif isinstance(self.birth_date, str):
+                birth_date_str = self.birth_date.strip()
+            else:
+                birth_date_str = self.birth_date.strftime("%Y-%m-%d")
         except Exception:
             birth_date_str = ""
 
@@ -61,6 +66,7 @@ class User(db.Model):
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
-        }
+    }
+
 
 
