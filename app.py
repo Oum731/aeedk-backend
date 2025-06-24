@@ -1,5 +1,5 @@
 from datetime import timedelta
-from flask import Flask, request, send_from_directory
+from flask import Flask, request, send_from_directory, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
@@ -14,34 +14,31 @@ def create_app():
     app = Flask(__name__)
 
     frontend_origins = [FRONTEND_URL]
-    print("FRONTEND autorisé :", frontend_origins)
 
+    # ---- CORS (adapté pour JWT et Authorization headers) ----
     CORS(
         app,
-        resources={
-            r"/api/*": {
-                "origins": frontend_origins,
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                "allow_headers": ["Content-Type", "Authorization"],
-            },
-            r"/media/*": {
-                "origins": frontend_origins,
-                "methods": ["GET"],
-            }
-        },
+        resources={r"/api/*": {"origins": frontend_origins}},
         supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization"],
         expose_headers=["Authorization"],
-        max_age=600
+        max_age=600,
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
+
+    # ---- OPTIONS handler universel pour préflight (sans bug de CORS) ----
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers.add("Access-Control-Allow-Origin", FRONTEND_URL)
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        return response
 
     @app.before_request
     def handle_options_requests():
         if request.method == 'OPTIONS':
-            return '', 200, {
-                "Access-Control-Allow-Origin": FRONTEND_URL,
-                "Access-Control-Allow-Headers": "Content-Type, Authorization",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
-            }
+            return '', 200
 
     app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
     app.config.update(
@@ -83,6 +80,15 @@ def create_app():
     @app.route('/')
     def index():
         return "<h1>Bienvenue dans l'API Flask (Render)</h1>"
+
+    # ---- ERREUR 422 spécifique JWT pour debug frontend ----
+    @app.errorhandler(422)
+    def handle_422(err):
+        return jsonify({"error": "Requête incomplète ou malformée (422)", "details": str(err)}), 422
+
+    @app.errorhandler(401)
+    def handle_401(err):
+        return jsonify({"error": "Non autorisé (401)", "details": str(err)}), 401
 
     return app
 
