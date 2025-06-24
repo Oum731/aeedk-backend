@@ -203,7 +203,7 @@ def get_user(user_id):
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
-@user_bp.route('/<int:user_id>', methods=['PUT','POST'])
+@user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
 @jwt_required()
 def update_user(user_id):
     current_user_id = get_jwt_identity()
@@ -212,8 +212,10 @@ def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
+
     try:
         data = {}
+
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
             if 'avatar' in request.files:
@@ -269,8 +271,10 @@ def update_user(user_id):
 
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
+
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
+
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
