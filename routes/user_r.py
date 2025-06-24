@@ -93,12 +93,12 @@ def register():
     db.session.add(user)
     db.session.commit()
     verify_url = url_for('user.verify_email', token=user.confirmation_token, _external=True)
-    sender = os.getenv('MAIL_USERNAME')
+    sender = str(os.getenv('MAIL_USERNAME'))
     if not sender or not isinstance(sender, str):
         return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(user.email)
     msg = Message(
-        subject="Confirmation de votre inscription",
+        subject=str("Confirmation de votre inscription"),
         sender=sender,
         recipients=[recipient]
     )
@@ -149,12 +149,12 @@ def forgot_password():
     user.reset_token_expiration = datetime.utcnow() + timedelta(hours=1)
     db.session.commit()
     reset_url = url_for('user.reset_password_get', token=token, _external=True)
-    sender = os.getenv('MAIL_USERNAME')
+    sender = str(os.getenv('MAIL_USERNAME'))
     if not sender or not isinstance(sender, str):
         return jsonify({"error": "Configuration email invalide (MAIL_USERNAME manquant)"}), 500
     recipient = str(email)
     msg = Message(
-        subject="Réinitialisation du mot de passe",
+        subject=str("Réinitialisation du mot de passe"),
         sender=sender,
         recipients=[recipient]
     )
@@ -194,7 +194,11 @@ def get_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
-    return jsonify({"user": user.to_dict()}), 200
+    try:
+        d = user.to_dict()
+        return jsonify({"user": d}), 200
+    except Exception as e:
+        return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
 @user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
 @jwt_required()
