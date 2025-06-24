@@ -273,7 +273,6 @@ def update_user(user_id):
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
-
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():

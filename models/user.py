@@ -15,7 +15,7 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="avatars/avatar.jpeg")
+    avatar = db.Column(db.String(255), default="avatar.jpeg")
     role = db.Column(db.String(20), default='membre')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
@@ -34,12 +34,13 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        if self.avatar and not self.avatar.startswith("http"):
-            filename = self.avatar.split("/")[-1]
+        avatar_value = self.avatar or "avatar.jpeg"
+        if avatar_value and not avatar_value.startswith("http"):
+            filename = avatar_value.split("/")[-1]
             avatar_url = url_for('user.get_avatar', filename=filename, _external=True)
             avatar_url += f'?t={int(datetime.utcnow().timestamp())}'
         else:
-            avatar_url = self.avatar or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
+            avatar_url = avatar_value or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
 
         try:
             birth_date_str = self.birth_date.strftime("%Y-%m-%d") if self.birth_date else ""
@@ -55,6 +56,7 @@ class User(db.Model):
             "birth_date": birth_date_str,
             "sub_prefecture": self.sub_prefecture or "",
             "village": self.village or "",
+            "avatar": avatar_value,
             "avatar_url": avatar_url,
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
