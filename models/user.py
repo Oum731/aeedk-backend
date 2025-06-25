@@ -1,7 +1,6 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
-from flask import url_for
 
 class User(db.Model):
     __tablename__ = "user"
@@ -15,7 +14,7 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="avatar.jpeg")
+    avatar = db.Column(db.String(255), default="")  # Cloudinary URL or empty string
     role = db.Column(db.String(20), default='membre')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
@@ -34,13 +33,10 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        avatar_value = self.avatar or "avatar.jpeg"
-        if avatar_value and not avatar_value.startswith("http"):
-            filename = avatar_value.split("/")[-1]
-            avatar_url = url_for('user.get_avatar', filename=filename, _external=True)
-            avatar_url += f'?t={int(datetime.utcnow().timestamp())}'
-        else:
-            avatar_url = avatar_value or url_for('user.get_avatar', filename="avatar.jpeg", _external=True)
+        # Lien Cloudinary par défaut si pas d'avatar
+        default_avatar_url = "https://res.cloudinary.com/dzsdwdw6w/image/upload/v1719418101/avatar_default.png"  # Mets ici l’URL de ton avatar de base Cloudinary
+        avatar_value = self.avatar or ""
+        avatar_url = avatar_value if avatar_value and avatar_value.startswith("http") else default_avatar_url
 
         try:
             if not self.birth_date:
@@ -66,8 +62,4 @@ class User(db.Model):
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
-    }
-
-
-
-
+        }
