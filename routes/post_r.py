@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin 
 from app import db
 from models.like import Like
@@ -7,31 +7,17 @@ from models.post import Post
 from models.user import User
 import os
 import uuid
-from werkzeug.utils import secure_filename
 
 post_bp = Blueprint('post_bp', __name__, url_prefix='/api/posts')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm'}
-UPLOAD_FOLDER = './media/posts'
-BASE_URL = 'https://aeedk-backend.onrender.com'
-
-
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
 def is_admin(user_id):
     user = User.query.get(user_id)
     return user and user.role == 'admin'
-
-
-@post_bp.route('/media/<path:filename>')
-@cross_origin()
-def media_posts(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
 
 @post_bp.route('', methods=['POST'])
 @cross_origin()
@@ -48,17 +34,19 @@ def create_post():
     medias = []
     for file in request.files.getlist('media'):
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            unique_name = f"{uuid.uuid4()}_{filename}"
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            file_path = os.path.join(UPLOAD_FOLDER, unique_name)
-            file.save(file_path)
-            ext = filename.rsplit('.', 1)[1].lower()
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            # Upload sur Cloudinary
+            result = cloudinary.uploader.upload(
+                file,
+                folder="posts_aeedk",
+                public_id=f"{uuid.uuid4()}_post",
+                resource_type="video" if ext in {'mp4', 'webm'} else "image"
+            )
+            media_url = result["secure_url"]
             media_type = 'video' if ext in {'mp4', 'webm'} else 'image'
-            media_url = f"{BASE_URL}/api/posts/media/{unique_name}"
             medias.append({
                 "url": media_url,
-                "filename": filename,
+                "filename": result.get("original_filename") + '.' + ext,
                 "type": media_type,
             })
 
@@ -79,7 +67,6 @@ def create_post():
         "post": post.to_dict(),
     }), 201
 
-
 @post_bp.route('', methods=['GET'])
 @cross_origin()
 def get_posts():
@@ -91,7 +78,6 @@ def get_posts():
         traceback.print_exc()
         return jsonify({"error": "Erreur serveur", "details": str(e)}), 500
 
-
 @post_bp.route('/<int:post_id>', methods=['GET'])
 @cross_origin()
 def get_post(post_id):
@@ -99,7 +85,6 @@ def get_post(post_id):
     if not post:
         return jsonify({"error": "Post non trouvé"}), 404
     return jsonify(post.to_dict(include_comments=True)), 200
-
 
 @post_bp.route('/<int:post_id>', methods=['PUT'])
 @cross_origin()
@@ -123,15 +108,20 @@ def update_post(post_id):
         medias = []
         for file in request.files.getlist('media'):
             if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                unique_name = f"{uuid.uuid4()}_{filename}"
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                file_path = os.path.join(UPLOAD_FOLDER, unique_name)
-                file.save(file_path)
-                ext = filename.rsplit('.', 1)[1].lower()
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                result = cloudinary.uploader.upload(
+                    file,
+                    folder="posts_aeedk",
+                    public_id=f"{uuid.uuid4()}_post",
+                    resource_type="video" if ext in {'mp4', 'webm'} else "image"
+                )
+                media_url = result["secure_url"]
                 media_type = 'video' if ext in {'mp4', 'webm'} else 'image'
-                url = f"{BASE_URL}/api/posts/media/{unique_name}"
-                medias.append({"url": url, "filename": filename, "type": media_type})
+                medias.append({
+                    "url": media_url,
+                    "filename": result.get("original_filename") + '.' + ext,
+                    "type": media_type,
+                })
         if medias:
             post.media = medias
     else:
@@ -143,7 +133,6 @@ def update_post(post_id):
     post.updated_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"message": "Post mis à jour", "post": post.to_dict()}), 200
-
 
 @post_bp.route('/<int:post_id>', methods=['DELETE'])
 @cross_origin()
@@ -162,7 +151,6 @@ def delete_post(post_id):
     db.session.commit()
     return jsonify({"message": "Post supprimé"}), 200
 
-
 @post_bp.route('/<int:post_id>/like', methods=['POST'])
 @cross_origin()
 def like_post(post_id):
@@ -178,7 +166,6 @@ def like_post(post_id):
     db.session.add(like)
     db.session.commit()
     return jsonify({"message": "Post liké"}), 201
-
 
 @post_bp.route('/<int:post_id>/like', methods=['DELETE'])
 @cross_origin()

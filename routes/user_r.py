@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request, send_from_directory, url_for, make_response, redirect
+from flask import Blueprint, jsonify, request, url_for, redirect
 from flask_cors import cross_origin
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from flask_mail import Message
@@ -8,32 +8,32 @@ from models.user import User
 import os
 import uuid
 import re
-from werkzeug.utils import secure_filename
 from sqlalchemy import or_
-from PIL import Image
 
-FRONTEND_URL = "https://aeedk-frontend.onrender.com"
+# --- Ajout Cloudinary ---
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+
+load_dotenv()
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+)
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://aeedk-frontend.onrender.com")
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
 
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "..", "media", "avatars")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 MAX_AVATAR_SIZE = 2 * 1024 * 1024
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@user_bp.route('/avatar/<filename>')
-def get_avatar(filename):
-    safe_name = secure_filename(filename)
-    full_path = os.path.join(UPLOAD_FOLDER, safe_name)
-    if not os.path.exists(full_path):
-        return send_from_directory(UPLOAD_FOLDER, "avatar.jpeg")
-    response = make_response(send_from_directory(UPLOAD_FOLDER, safe_name))
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    return response
+# --- Plus de route /avatar/<filename> ! ---
 
 @user_bp.route('/register', methods=['POST'])
 @cross_origin(origin=FRONTEND_URL, supports_credentials=True)
@@ -53,7 +53,9 @@ def register():
         birth_date = datetime.strptime(data['birth_date'], "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
-    avatar_path = "avatar.jpeg"
+
+    avatar_url = ""  # Par défaut, vide (tu peux mettre l'URL de l'avatar générique Cloudinary ici)
+
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
@@ -62,23 +64,18 @@ def register():
             file.seek(0)
             if file_size > MAX_AVATAR_SIZE:
                 return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
-            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-            temp_filename = secure_filename(file.filename)
-            temp_path = os.path.join(UPLOAD_FOLDER, f"tmp_{uuid.uuid4()}_{temp_filename}")
-            file.save(temp_path)
-            try:
-                img = Image.open(temp_path).convert("RGBA")
-                unique_filename = f"{uuid.uuid4()}_avatar.png"
-                save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                img.save(save_path, "PNG")
-                avatar_path = unique_filename
-            except Exception:
-                return jsonify({"error": "Impossible de traiter l'avatar"}), 400
-            finally:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
+            # --- Upload Cloudinary ---
+            result = cloudinary.uploader.upload(
+                file,
+                folder="avatars_aeedk",
+                public_id=f"{uuid.uuid4()}_avatar",
+                overwrite=True,
+                resource_type="image"
+            )
+            avatar_url = result["secure_url"]
         else:
             return jsonify({"error": "Format d'avatar non autorisé"}), 400
+
     user = User(
         username=data['username'],
         email=data['email'],
@@ -88,7 +85,7 @@ def register():
         sub_prefecture=data['sub_prefecture'],
         village=data['village'],
         phone=data['phone'],
-        avatar=avatar_path,
+        avatar=avatar_url,  # URL Cloudinary
         role='membre',
         confirmation_token=str(uuid.uuid4())
     )
@@ -194,20 +191,13 @@ def reset_password(token):
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
-    print("==== GET USER", user_id)
     user = User.query.get(user_id)
     if not user:
-        print("Not found!")
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     try:
-        d = user.to_dict()
-        print("User dict:", d)
-        return jsonify({"user": d}), 200
+        return jsonify({"user": user.to_dict()}), 200
     except Exception as e:
-        print("EXCEPTION in get_user:", str(e))
-        # Ici retourne bien 500, JAMAIS 422
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
-
 
 @user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
 @jwt_required()
@@ -221,10 +211,8 @@ def update_user(user_id):
 
     try:
         data = {}
-        # Traitement du formulaire (multipart)
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
-            # Correction pour le champ sub_prefecture
             if "sous-préfecture" in data and "sub_prefecture" not in data:
                 data["sub_prefecture"] = data.pop("sous-préfecture")
             if 'avatar' in request.files:
@@ -235,33 +223,21 @@ def update_user(user_id):
                     avatar.seek(0)
                     if file_size > MAX_AVATAR_SIZE:
                         return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
-                    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                    temp_filename = secure_filename(avatar.filename)
-                    temp_path = os.path.join(UPLOAD_FOLDER, f"tmp_{uuid.uuid4()}_{temp_filename}")
-                    avatar.save(temp_path)
-                    try:
-                        img = Image.open(temp_path).convert("RGBA")
-                        unique_filename = f"{uuid.uuid4()}_avatar.png"
-                        save_path = os.path.join(UPLOAD_FOLDER, unique_filename)
-                        img.save(save_path, "PNG")
-                        user.avatar = unique_filename
-                    except Exception:
-                        return jsonify({"error": "Impossible de traiter l'avatar"}), 400
-                    finally:
-                        if os.path.exists(temp_path):
-                            os.remove(temp_path)
+                    # --- Upload Cloudinary ---
+                    result = cloudinary.uploader.upload(
+                        avatar,
+                        folder="avatars_aeedk",
+                        public_id=f"{uuid.uuid4()}_avatar",
+                        overwrite=True,
+                        resource_type="image"
+                    )
+                    user.avatar = result["secure_url"]
                 elif avatar and avatar.filename:
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json(silent=True) or {}
-            # Correction pour sub_prefecture (tolerer l'ancien nom)
             if "sous-préfecture" in data and "sub_prefecture" not in data:
                 data["sub_prefecture"] = data.pop("sous-préfecture")
-            print("== DONNEES REÇUES update_user ==")
-            print("data =", data)
-            if request.files:
-                print("files =", request.files)
-            print("=====================")
 
         fields = [
             'username', 'first_name', 'last_name',
@@ -284,26 +260,15 @@ def update_user(user_id):
                 try:
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
                 except ValueError as e:
-                    print("Erreur date:", e)
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
-        print("== AVANT COMMIT ==")
-        print("username", user.username)
-        print("first_name", user.first_name)
-        print("last_name", user.last_name)
-        print("birth_date", user.birth_date)
-        print("sub_prefecture", user.sub_prefecture)
-        print("village", user.village)
-        print("phone", user.phone)
-        print("avatar", user.avatar)
-        print("=====================")
 
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
 
     except Exception as e:
-        print("EXCEPTION in update_user:", str(e))
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
+# --- Les routes admin restent identiques ---
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():
@@ -353,4 +318,3 @@ def admin_delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({"message": "Utilisateur supprimé"}), 200
-
