@@ -205,6 +205,7 @@ def get_user(user_id):
         return jsonify({"user": d}), 200
     except Exception as e:
         print("EXCEPTION in get_user:", str(e))
+        # Ici retourne bien 500, JAMAIS 422
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
 
@@ -220,9 +221,12 @@ def update_user(user_id):
 
     try:
         data = {}
-
+        # Traitement du formulaire (multipart)
         if request.content_type and 'multipart/form-data' in request.content_type:
             data = {k: v for k, v in request.form.items()}
+            # Correction pour le champ sub_prefecture
+            if "sous-préfecture" in data and "sub_prefecture" not in data:
+                data["sub_prefecture"] = data.pop("sous-préfecture")
             if 'avatar' in request.files:
                 avatar = request.files['avatar']
                 if avatar and avatar.filename and allowed_file(avatar.filename):
@@ -250,12 +254,14 @@ def update_user(user_id):
                     return jsonify({"error": "Format d'avatar non autorisé"}), 400
         else:
             data = request.get_json(silent=True) or {}
+            # Correction pour sub_prefecture (tolerer l'ancien nom)
+            if "sous-préfecture" in data and "sub_prefecture" not in data:
+                data["sub_prefecture"] = data.pop("sous-préfecture")
             print("== DONNEES REÇUES update_user ==")
             print("data =", data)
             if request.files:
                 print("files =", request.files)
             print("=====================")
-
 
         fields = [
             'username', 'first_name', 'last_name',
@@ -277,7 +283,8 @@ def update_user(user_id):
             if isinstance(raw, str) and raw.strip():
                 try:
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
-                except ValueError:
+                except ValueError as e:
+                    print("Erreur date:", e)
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
         print("== AVANT COMMIT ==")
         print("username", user.username)
@@ -290,13 +297,12 @@ def update_user(user_id):
         print("avatar", user.avatar)
         print("=====================")
 
-
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
 
     except Exception as e:
+        print("EXCEPTION in update_user:", str(e))
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
-
 
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
