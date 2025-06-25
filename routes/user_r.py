@@ -194,14 +194,19 @@ def reset_password(token):
 @user_bp.route('/<int:user_id>', methods=['GET'])
 @jwt_required()
 def get_user(user_id):
+    print("==== GET USER", user_id)
     user = User.query.get(user_id)
     if not user:
+        print("Not found!")
         return jsonify({"error": f"Utilisateur avec ID {user_id} non trouvé"}), 404
     try:
         d = user.to_dict()
+        print("User dict:", d)
         return jsonify({"user": d}), 200
     except Exception as e:
+        print("EXCEPTION in get_user:", str(e))
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
+
 
 @user_bp.route('/<int:user_id>', methods=['PUT', 'POST'])
 @jwt_required()
