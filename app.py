@@ -5,10 +5,18 @@ from dotenv import load_dotenv
 import os
 from extensions import db, bcrypt, jwt, mail
 from routes import comment_r, contact_r, like_r, post_r, user_r
+import cloudinary
+import cloudinary.uploader
 
 load_dotenv()
 
-FRONTEND_URL = "https://aeedk-frontend.onrender.com"
+FRONTEND_URL = os.getenv('FRONTEND_URL', "https://aeedk-frontend.onrender.com")
+
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
 
 def create_app():
     app = Flask(__name__)
@@ -70,7 +78,7 @@ def create_app():
     @app.route('/')
     def index():
         return "<h1>Bienvenue dans l'API Flask (Render)</h1>"
-    
+
     import pprint
     @app.before_request
     def log_request_info():
@@ -82,7 +90,6 @@ def create_app():
         print("Data (json):", request.get_json(silent=True))
         print("-------------------------------")
 
-
     return app
 
 if __name__ == "__main__":
@@ -93,7 +100,7 @@ if __name__ == "__main__":
         from models.comment import Comment
         from models.contact import Contact
         from models.like import Like
-        # db.create_all()
+        # db.create_all()  
 
     app.run(
         host=os.getenv('FLASK_HOST', '0.0.0.0'),
