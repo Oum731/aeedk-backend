@@ -172,7 +172,8 @@ def reset_password(token):
     user.reset_token = None
     user.reset_token_expiration = None
     db.session.commit()
-    return jsonify({"message": "Mot de passe réinitialisé avec succès"})
+    return redirect(f"{FRONTEND_URL}/login?reset=success", code=302)
+
 
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
