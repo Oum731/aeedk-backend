@@ -37,12 +37,16 @@ class User(db.Model):
         avatar_value = self.avatar if self.avatar and isinstance(self.avatar, str) else ""
         avatar_url = avatar_value if avatar_value.startswith("http") else default_avatar_url
 
-        if self.birth_date:
-            if isinstance(self.birth_date, str):
+        try:
+            if not self.birth_date:
+                birth_date_str = ""
+            elif isinstance(self.birth_date, str):
                 birth_date_str = self.birth_date
-            else:
+            elif hasattr(self.birth_date, 'strftime'):
                 birth_date_str = self.birth_date.strftime("%Y-%m-%d")
-        else:
+            else:
+                birth_date_str = str(self.birth_date)
+        except Exception:
             birth_date_str = ""
 
         return {
@@ -59,4 +63,5 @@ class User(db.Model):
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
-        }
+    }
+
