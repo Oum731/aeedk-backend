@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request, url_for, redirect
 from flask_cors import cross_origin
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, verify_jwt_in_request
 from flask_mail import Message
 from app import db, mail
 from models.user import User
@@ -297,3 +297,16 @@ def admin_delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return jsonify({"message": "Utilisateur supprimé"}), 200
+
+@user_bp.before_request
+def update_last_active():
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                user.last_active = datetime.utcnow()
+                db.session.commit()
+    except Exception:
+        pass

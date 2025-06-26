@@ -4,7 +4,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from extensions import db, bcrypt, jwt, mail
-from routes import comment_r, contact_r, like_r, post_r, user_r
+from routes import comment_r, contact_r, like_r, post_r, user_r,notification_r
 import cloudinary
 import cloudinary.uploader
 
@@ -70,6 +70,7 @@ def create_app():
     app.register_blueprint(like_r.like_bp)
     app.register_blueprint(comment_r.comment_bp)
     app.register_blueprint(contact_r.contact_bp)
+    app.register_blueprint(notification_r.notification_bp)
 
     @app.route('/media/<path:filename>')
     def media(filename):

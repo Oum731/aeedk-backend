@@ -14,13 +14,15 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="")  
+    avatar = db.Column(db.String(255), default="")
     role = db.Column(db.String(20), default='membre')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
     confirmation_token = db.Column(db.String(128), nullable=True)
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
     comments = db.relationship('Comment', back_populates='user', cascade="all, delete-orphan")
     likes = db.relationship('Like', back_populates='user', cascade='all, delete-orphan')
 
@@ -49,6 +51,11 @@ class User(db.Model):
         except Exception:
             birth_date_str = ""
 
+        from datetime import datetime, timedelta
+        is_online = False
+        if self.last_active:
+            is_online = (datetime.utcnow() - self.last_active) < timedelta(minutes=5)
+
         return {
             "id": self.id,
             "username": self.username or "",
@@ -63,5 +70,5 @@ class User(db.Model):
             "role": self.role or "membre",
             "confirmed": bool(self.confirmed),
             "phone": self.phone or "",
-    }
-
+            "is_online": is_online
+        }

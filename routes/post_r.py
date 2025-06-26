@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_cors import cross_origin 
 from app import db
 from models.like import Like
+from models.notification import Notification
 from models.post import Post
 from models.user import User
 import os
@@ -60,6 +61,16 @@ def create_post():
         created_at=datetime.utcnow()
     )
     db.session.add(post)
+    db.session.commit()
+
+    # Création notification pour tous les utilisateurs sauf auteur
+    users = User.query.filter(User.id != int(user_id)).all()
+    for user in users:
+        notif = Notification(
+            recipient_id=user.id,
+            message=f"Nouveau post publié : {post.title}"
+        )
+        db.session.add(notif)
     db.session.commit()
 
     return jsonify({

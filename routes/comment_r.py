@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from app import db
 from models.comment import Comment
+from models.notification import Notification
 from models.user import User
 from models.post import Post
 
@@ -20,13 +21,10 @@ def get_all_comments():
 def create_comment():
     try:
         data = request.get_json(force=True)
-    except Exception as e:
-        print("Erreur de parsing JSON:", e)
+    except Exception:
         return jsonify({"error": "JSON invalide"}), 400
 
-    print("DATA RECUE:", data)
     if not data:
-        print("Aucune donnée reçue")
         return jsonify({"error": "Aucune donnée reçue"}), 400
 
     content = data.get('content')
@@ -34,52 +32,44 @@ def create_comment():
     parent_comment_id = data.get('parent_comment_id')
     user_id = data.get('user_id')
 
-    print(f"content: {content}, post_id: {post_id}, user_id: {user_id}, parent_comment_id: {parent_comment_id}")
-
     if not content or not post_id or not user_id:
-        print("Champs manquants")
         return jsonify({"error": "Le contenu, l'id du post et l'id utilisateur sont requis"}), 400
 
     user = User.query.get(user_id)
     if not user:
-        print("User not found")
         return jsonify({"error": "Utilisateur non trouvé"}), 404
 
     post = Post.query.get(post_id)
     if not post:
-        print("Post not found")
         return jsonify({"error": "Post non trouvé"}), 404
 
     if parent_comment_id:
         parent_comment = Comment.query.get(parent_comment_id)
-        print(f"parent_comment_id reçu : {parent_comment_id}")
-        print(f"parent_comment trouvé : {parent_comment}")
-        if not parent_comment:
-            print("Commentaire parent introuvable")
-            return jsonify({"error": "Commentaire parent introuvable"}), 400
-        if parent_comment.post_id != post_id:
-            print("Le commentaire parent n'appartient pas au même post")
+        if not parent_comment or parent_comment.post_id != post_id:
             return jsonify({"error": "Commentaire parent invalide"}), 400
 
-    try:
-        comment = Comment(
-            content=content,
-            user_id=user_id,
-            post_id=post_id,
-            parent_comment_id=parent_comment_id
-        )
-        db.session.add(comment)
-        db.session.commit()
-    except Exception as e:
-        print("Erreur lors de la création du commentaire:", e)
-        db.session.rollback()
-        return jsonify({"error": "Erreur lors de la création du commentaire"}), 500
+    comment = Comment(
+        content=content,
+        user_id=user_id,
+        post_id=post_id,
+        parent_comment_id=parent_comment_id
+    )
+    db.session.add(comment)
+    db.session.commit()
 
-    print("Commentaire créé:", comment.id)
+    if post.author_id != user_id:
+        notif = Notification(
+            recipient_id=post.author_id,
+            message=f"Nouveau commentaire sur votre post : {post.title}"
+        )
+        db.session.add(notif)
+        db.session.commit()
+
     return jsonify({
         "message": "Commentaire créé avec succès",
         "comment": comment.to_dict()
     }), 201
+
 
 
 @comment_bp.route('/<int:comment_id>', methods=['GET'])
