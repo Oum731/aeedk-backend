@@ -9,19 +9,8 @@ import os
 import uuid
 import re
 from sqlalchemy import or_
-
-# --- Ajout Cloudinary ---
 import cloudinary
 import cloudinary.uploader
-from dotenv import load_dotenv
-
-load_dotenv()
-
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://aeedk-frontend.onrender.com")
 user_bp = Blueprint('user', __name__, url_prefix='/api/user')
@@ -32,8 +21,6 @@ MAX_AVATAR_SIZE = 2 * 1024 * 1024
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# --- Plus de route /avatar/<filename> ! ---
 
 @user_bp.route('/register', methods=['POST'])
 @cross_origin(origin=FRONTEND_URL, supports_credentials=True)
@@ -54,8 +41,7 @@ def register():
     except ValueError:
         return jsonify({"error": "Format de birth_date invalide, attendu YYYY-MM-DD"}), 400
 
-    avatar_url = ""  # Par défaut, vide (tu peux mettre l'URL de l'avatar générique Cloudinary ici)
-
+    avatar_url = ""
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and allowed_file(file.filename):
@@ -64,7 +50,6 @@ def register():
             file.seek(0)
             if file_size > MAX_AVATAR_SIZE:
                 return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
-            # --- Upload Cloudinary ---
             result = cloudinary.uploader.upload(
                 file,
                 folder="avatars_aeedk",
@@ -85,7 +70,7 @@ def register():
         sub_prefecture=data['sub_prefecture'],
         village=data['village'],
         phone=data['phone'],
-        avatar=avatar_url,  # URL Cloudinary
+        avatar=avatar_url,
         role='membre',
         confirmation_token=str(uuid.uuid4())
     )
@@ -208,7 +193,6 @@ def update_user(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "Utilisateur non trouvé"}), 404
-
     try:
         data = {}
         if request.content_type and 'multipart/form-data' in request.content_type:
@@ -223,7 +207,6 @@ def update_user(user_id):
                     avatar.seek(0)
                     if file_size > MAX_AVATAR_SIZE:
                         return jsonify({"error": "Avatar trop volumineux (max 2 Mo)"}), 413
-                    # --- Upload Cloudinary ---
                     result = cloudinary.uploader.upload(
                         avatar,
                         folder="avatars_aeedk",
@@ -238,7 +221,6 @@ def update_user(user_id):
             data = request.get_json(silent=True) or {}
             if "sous-préfecture" in data and "sub_prefecture" not in data:
                 data["sub_prefecture"] = data.pop("sous-préfecture")
-
         fields = [
             'username', 'first_name', 'last_name',
             'sub_prefecture', 'village', 'phone'
@@ -253,22 +235,19 @@ def update_user(user_id):
                         user.username = value
                     else:
                         setattr(user, field, value)
-
         if 'birth_date' in data:
             raw = data['birth_date']
             if isinstance(raw, str) and raw.strip():
                 try:
                     user.birth_date = datetime.strptime(raw.strip(), "%Y-%m-%d").date()
-                except ValueError as e:
+                except ValueError:
                     return jsonify({"error": "Format de date invalide (YYYY-MM-DD)"}), 422
-
         db.session.commit()
         return jsonify({"message": "Profil mis à jour", "user": user.to_dict()}), 200
-
     except Exception as e:
         return jsonify({"error": "Erreur interne", "details": str(e)}), 500
 
-# --- Les routes admin restent identiques ---
+
 @user_bp.route('/admin/users', methods=['GET'])
 @jwt_required()
 def admin_get_all_users():

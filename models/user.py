@@ -14,7 +14,7 @@ class User(db.Model):
     birth_date = db.Column(db.Date)
     sub_prefecture = db.Column(db.String(100))
     village = db.Column(db.String(100))
-    avatar = db.Column(db.String(255), default="")  # Cloudinary URL or empty string
+    avatar = db.Column(db.String(255), default="")  
     role = db.Column(db.String(20), default='membre')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     confirmed = db.Column(db.Boolean, default=False)
@@ -33,19 +33,16 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        # Lien Cloudinary par défaut si pas d'avatar
-        default_avatar_url = "https://res.cloudinary.com/dzsdwdw6w/image/upload/v1719418101/avatar_default.png"  # Mets ici l’URL de ton avatar de base Cloudinary
-        avatar_value = self.avatar or ""
-        avatar_url = avatar_value if avatar_value and avatar_value.startswith("http") else default_avatar_url
+        default_avatar_url = "https://res.cloudinary.com/dk6mvlzji/image/upload/v1719418101/avatar_default.png"
+        avatar_value = self.avatar if self.avatar and isinstance(self.avatar, str) else ""
+        avatar_url = avatar_value if avatar_value.startswith("http") else default_avatar_url
 
-        try:
-            if not self.birth_date:
-                birth_date_str = ""
-            elif isinstance(self.birth_date, str):
-                birth_date_str = self.birth_date.strip()
+        if self.birth_date:
+            if isinstance(self.birth_date, str):
+                birth_date_str = self.birth_date
             else:
                 birth_date_str = self.birth_date.strftime("%Y-%m-%d")
-        except Exception:
+        else:
             birth_date_str = ""
 
         return {

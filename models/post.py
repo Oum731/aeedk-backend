@@ -11,7 +11,7 @@ class Post(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     author = db.relationship('User', backref=db.backref('posts', lazy=True))
     comments = db.relationship('Comment', back_populates='post', cascade="all, delete-orphan")
-    media = db.Column(db.JSON, nullable=True)  # Cloudinary URLs
+    media = db.Column(db.JSON, nullable=True) 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = db.Column(db.String(50), default='published')

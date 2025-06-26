@@ -36,7 +36,6 @@ def create_post():
     for file in request.files.getlist('media'):
         if file and allowed_file(file.filename):
             ext = file.filename.rsplit('.', 1)[1].lower()
-            # Upload sur Cloudinary
             result = cloudinary.uploader.upload(
                 file,
                 folder="posts_aeedk",
