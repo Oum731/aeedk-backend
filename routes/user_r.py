@@ -107,7 +107,7 @@ def login():
         return jsonify({"error": "Identifiants invalides"}), 401
     if not user.confirmed:
         return jsonify({"error": "Veuillez confirmer votre email."}), 403
-    token = create_access_token(identity=user.id)
+    token = create_access_token(identity=str(user.id))
     return jsonify({"token": token, "user": user.to_dict()}), 200
 
 @user_bp.route('/verify/<token>', methods=['GET'])
