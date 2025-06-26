@@ -4,7 +4,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 from extensions import db, bcrypt, jwt, mail
-from routes import comment_r, contact_r, like_r, post_r, user_r,notification_r
+from routes import comment_r, contact_r, like_r, post_r, user_r, notification_r
 import cloudinary
 import cloudinary.uploader
 
@@ -19,7 +19,7 @@ cloudinary.config(
 )
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='frontend/build', static_url_path='/')
 
     frontend_origins = [FRONTEND_URL]
 
@@ -76,29 +76,18 @@ def create_app():
     def media(filename):
         return send_from_directory('media', filename)
 
-    @app.route('/')
-    def index():
-        return "<h1>Bienvenue dans l'API Flask (Render)</h1>"
-    # @app.before_request
-    # def log_headers():
-    #     print("=== Nouvelle requête ===")
-    #     print("URL:", request.path)
-    #     print("Headers:", dict(request.headers))
-    #     print("Méthode:", request.method)
-    #     print("JSON:", request.get_json(silent=True))
-    #     print("========================")
+    @app.route('/<path:path>', methods=['GET'])
+    def serve_react_app(path):
+        if path.startswith('api') or path.startswith('media'):
+            return "Not found", 404
+        if os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        else:
+            return send_from_directory(app.static_folder, 'index.html')
 
-
-    # import pprint
-    # @app.before_request
-    # def log_request_info():
-    #     print("------ NOUVELLE REQUETE --------")
-    #     print("Headers:", dict(request.headers))
-    #     print("Args:", dict(request.args))
-    #     print("Form:", dict(request.form))
-    #     print("Files:", request.files)
-    #     print("Data (json):", request.get_json(silent=True))
-    #     print("-------------------------------")
+    @app.route('/', methods=['GET'])
+    def serve_index():
+        return send_from_directory(app.static_folder, 'index.html')
 
     return app
 
@@ -110,7 +99,6 @@ if __name__ == "__main__":
         from models.comment import Comment
         from models.contact import Contact
         from models.like import Like
-        # db.create_all()  
 
     app.run(
         host=os.getenv('FLASK_HOST', '0.0.0.0'),
