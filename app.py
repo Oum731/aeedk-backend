@@ -78,26 +78,26 @@ def create_app():
     @app.route('/')
     def index():
         return "<h1>Bienvenue dans l'API Flask (Render)</h1>"
-    @app.before_request
-    def log_headers():
-        print("=== Nouvelle requête ===")
-        print("URL:", request.path)
-        print("Headers:", dict(request.headers))
-        print("Méthode:", request.method)
-        print("JSON:", request.get_json(silent=True))
-        print("========================")
+    # @app.before_request
+    # def log_headers():
+    #     print("=== Nouvelle requête ===")
+    #     print("URL:", request.path)
+    #     print("Headers:", dict(request.headers))
+    #     print("Méthode:", request.method)
+    #     print("JSON:", request.get_json(silent=True))
+    #     print("========================")
 
 
-    import pprint
-    @app.before_request
-    def log_request_info():
-        print("------ NOUVELLE REQUETE --------")
-        print("Headers:", dict(request.headers))
-        print("Args:", dict(request.args))
-        print("Form:", dict(request.form))
-        print("Files:", request.files)
-        print("Data (json):", request.get_json(silent=True))
-        print("-------------------------------")
+    # import pprint
+    # @app.before_request
+    # def log_request_info():
+    #     print("------ NOUVELLE REQUETE --------")
+    #     print("Headers:", dict(request.headers))
+    #     print("Args:", dict(request.args))
+    #     print("Form:", dict(request.form))
+    #     print("Files:", request.files)
+    #     print("Data (json):", request.get_json(silent=True))
+    #     print("-------------------------------")
 
     return app
 
