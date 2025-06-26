@@ -33,7 +33,7 @@ class User(db.Model):
         return check_password_hash(self.password_hash, password)
 
     def to_dict(self):
-        default_avatar_url = "https://res.cloudinary.com/dk6mvlzji/image/upload/v1719418101/avatar_default.png"
+        default_avatar_url = "https://collection.cloudinary.com/dk6mvlzji/510146622a6b9787c7454c15adb84e7c"
         avatar_value = self.avatar if self.avatar and isinstance(self.avatar, str) else ""
         avatar_url = avatar_value if avatar_value.startswith("http") else default_avatar_url
 
