@@ -159,6 +159,7 @@ def reset_password_get(token):
     return redirect(f"{FRONTEND_URL}/reset-password?token={token}", code=302)
 
 @user_bp.route('/reset-password/<token>', methods=['POST'])
+@cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def reset_password(token):
     data = request.get_json() or {}
     password = data.get('password')
