@@ -96,6 +96,7 @@ def register():
         return jsonify({"error": "Erreur lors de l'envoi de l'email", "details": str(e)}), 500
 
 @user_bp.route('/login', methods=['POST'])
+@cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def login():
     data = request.get_json() or {}
     identifier = data.get('identifier')
@@ -121,6 +122,7 @@ def verify_email(token):
     return redirect(f"{FRONTEND_URL}/login?verified=success", code=302)
 
 @user_bp.route('/forgot-password', methods=['POST'])
+@cross_origin(origin=FRONTEND_URL, supports_credentials=True)
 def forgot_password():
     data = request.get_json() or {}
     email = data.get('email')
@@ -172,8 +174,7 @@ def reset_password(token):
     user.reset_token = None
     user.reset_token_expiration = None
     db.session.commit()
-    return redirect(f"{FRONTEND_URL}/login?reset=success", code=302)
-
+    return jsonify({"message": "Mot de passe réinitialisé avec succès"}), 200
 
 
 @user_bp.route('/<int:user_id>', methods=['GET'])
